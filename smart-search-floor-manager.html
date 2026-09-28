@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Smart-Search Floor Manager — SRM IST Trichy</title>
+<meta name="description" content="Find free campus rooms right now using live timetable-based availability across 13 class sections." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070c14; --bg2:#0b1424; --panel:rgba(255,255,255,.055); --panel-2:rgba(255,255,255,.09);
+    --stroke:rgba(255,255,255,.12); --fg:#eaf2ff; --muted:#93a5c0;
+    --free:#2fd48b; --busy:#ff5d6e; --limited:#ffc247; --unknown:#8fa0b8;
+    --accent:#35e0d0; --accent-2:#4d8dff; --shadow:0 18px 50px rgba(0,0,0,.45);
+    --r:18px; --ff-d:'Space Grotesk',system-ui,sans-serif; --ff-b:'DM Sans',system-ui,sans-serif;
+  }
+  html[data-theme="light"]{
+    --bg:#eef3fa; --bg2:#ffffff; --panel:rgba(255,255,255,.75); --panel-2:rgba(255,255,255,.95);
+    --stroke:rgba(14,32,60,.12); --fg:#0f1d33; --muted:#546480;
+    --free:#0f9d63; --busy:#d93a4c; --limited:#b7801a; --unknown:#6b7b93;
+    --accent:#0d9c94; --accent-2:#2a6bdc; --shadow:0 18px 40px rgba(18,40,80,.14);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--ff-b);color:var(--fg);background:
+      radial-gradient(1200px 700px at 8% -10%, color-mix(in oklab, var(--accent) 22%, transparent), transparent 60%),
+      radial-gradient(900px 600px at 100% 0%, color-mix(in oklab, var(--accent-2) 20%, transparent), transparent 55%),
+      linear-gradient(180deg,var(--bg),var(--bg2));min-height:100vh;-webkit-font-smoothing:antialiased}
+  h1,h2,h3,h4,.mono-d{font-family:var(--ff-d);letter-spacing:-.01em}
+  .wrap{max-width:1240px;margin:0 auto;padding:18px 16px 70px}
+  .glass{background:var(--panel);border:1px solid var(--stroke);border-radius:var(--r);backdrop-filter:blur(14px);box-shadow:var(--shadow)}
+  header.top{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;padding:16px 18px;margin-bottom:14px}
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{width:44px;height:44px;border-radius:13px;background:linear-gradient(140deg,var(--accent),var(--accent-2));display:grid;place-items:center;font-size:22px}
+  .brand h1{font-size:19px;margin:0;line-height:1.1}
+  .brand p{margin:3px 0 0;font-size:12.5px;color:var(--muted)}
+  .clockbox{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .pill{border:1px solid var(--stroke);background:var(--panel-2);border-radius:999px;padding:8px 13px;font-size:13px;display:flex;gap:8px;align-items:center}
+  .pill b{font-family:var(--ff-d)}
+  button,.btn{font-family:var(--ff-b);cursor:pointer;border-radius:12px;border:1px solid var(--stroke);background:var(--panel-2);color:var(--fg);padding:10px 14px;font-size:14px;transition:.18s transform,.18s background,.18s border-color}
+  button:hover{transform:translateY(-1px);border-color:color-mix(in oklab,var(--accent) 60%,var(--stroke))}
+  button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#04121b;border:none;font-weight:700}
+  html[data-theme="dark"] .primary{color:#04121b}
+  nav.tabs{display:flex;gap:8px;overflow-x:auto;padding:10px;margin-bottom:14px}
+  nav.tabs button{white-space:nowrap}
+  nav.tabs button[aria-selected="true"]{background:linear-gradient(135deg,color-mix(in oklab,var(--accent) 70%,transparent),color-mix(in oklab,var(--accent-2) 70%,transparent));color:#04121b;font-weight:700;border-color:transparent}
+  section.view{display:none}
+  section.view.on{display:block}
+  .grid2{display:grid;gap:14px;grid-template-columns:1.25fr .95fr}
+  .card{padding:16px 18px}
+  .card h3{margin:0 0 10px;font-size:15.5px}
+  .muted{color:var(--muted);font-size:13px}
+  .searchrow{display:flex;gap:10px;flex-wrap:wrap}
+  .searchrow input[type=text]{flex:1;min-width:240px;padding:15px 16px;border-radius:14px;border:1px solid var(--stroke);background:var(--panel-2);color:var(--fg);font-size:15px;font-family:var(--ff-b)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .chip{font-size:12.5px;padding:7px 11px;border-radius:999px;border:1px dashed var(--stroke);background:transparent;color:var(--muted)}
+  .chip:hover{color:var(--fg)}
+  .chip.on{background:color-mix(in oklab,var(--accent) 25%,transparent);color:var(--fg);border-style:solid}
+  .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:4px}
+  label.fl{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+  select,input[type=time],input[type=date],input[type=number]{width:100%;padding:10px 11px;border-radius:11px;border:1px solid var(--stroke);background:var(--panel-2);color:var(--fg);font-family:var(--ff-b);font-size:13.5px}
+  .statusdot{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .s-free{background:var(--free)} .s-busy{background:var(--busy)} .s-limited{background:var(--limited)} .s-unknown{background:var(--unknown)}
+  .badge{font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:999px;display:inline-flex;gap:6px;align-items:center;letter-spacing:.02em}
+  .b-free{background:color-mix(in oklab,var(--free) 22%,transparent);color:var(--free)}
+  .b-busy{background:color-mix(in oklab,var(--busy) 22%,transparent);color:var(--busy)}
+  .b-limited{background:color-mix(in oklab,var(--limited) 24%,transparent);color:var(--limited)}
+  .b-unknown{background:color-mix(in oklab,var(--unknown) 22%,transparent);color:var(--unknown)}
+  .results{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));margin-top:12px}
+  .rcard{padding:14px;border-radius:16px;border:1px solid var(--stroke);background:var(--panel);cursor:pointer;transition:.18s}
+  .rcard:hover{transform:translateY(-2px);border-color:color-mix(in oklab,var(--accent) 55%,var(--stroke))}
+  .rcard h4{margin:0;font-size:17px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+  .rcard .meta{font-size:12.5px;color:var(--muted);margin:7px 0 0;line-height:1.55}
+  .count{font-family:var(--ff-d);font-variant-numeric:tabular-nums;font-size:19px}
+  .why{margin:9px 0 0;padding:0;list-style:none;font-size:12.3px;color:var(--muted)}
+  .why li:before{content:"✓ ";color:var(--free)}
+  .why li.no:before{content:"⚠ ";color:var(--limited)}
+  .floorbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .fgrid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .rtile{padding:12px;border-radius:14px;border:1px solid var(--stroke);background:var(--panel-2);cursor:pointer;text-align:left}
+  .rtile b{font-family:var(--ff-d);font-size:15px;display:block}
+  .rtile small{display:block;color:var(--muted);font-size:11.5px;margin-top:3px}
+  .rtile.hit{box-shadow:0 0 0 2px var(--accent) inset}
+  .stage{perspective:1500px;padding:20px 10px;min-height:520px;display:grid;place-items:center;overflow:hidden}
+  .plate{transform:rotateX(52deg) rotateZ(-40deg) scale(.82);transform-origin:center;transform-style:preserve-3d;margin:0 auto;width:min(620px,92%);
+     background:color-mix(in oklab,var(--accent-2) 12%,transparent);border:1px solid var(--stroke);border-radius:16px;padding:20px;
+     display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));box-shadow:0 40px 60px rgba(0,0,0,.35)}
+  .mroom{height:74px;border-radius:10px;display:grid;place-items:center;text-align:center;cursor:pointer;color:#03121a;font-weight:700;
+     font-family:var(--ff-d);font-size:13px;transform:translateZ(16px);transition:.2s transform,.2s box-shadow;border:1px solid rgba(0,0,0,.25);padding:4px}
+  .mroom span{display:block;font-size:10px;font-weight:600;opacity:.8}
+  .mroom:hover{transform:translateZ(40px)}
+  .mroom.m-free{background:linear-gradient(160deg,#5ef0b0,#17b877)}
+  .mroom.m-busy{background:linear-gradient(160deg,#ff8f9b,#e03e51)}
+  .mroom.m-limited{background:linear-gradient(160deg,#ffd882,#e8a318)}
+  .mroom.m-unknown{background:linear-gradient(160deg,#cfd8e4,#8fa0b8)}
+  .mroom.hit{outline:3px solid var(--accent);transform:translateZ(54px)}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);align-items:center}
+  table{width:100%;border-collapse:collapse;font-size:12.8px}
+  th,td{text-align:left;padding:8px 9px;border-bottom:1px solid var(--stroke)}
+  th{color:var(--muted);font-weight:600;position:sticky;top:0;background:var(--bg2)}
+  .scroll{max-height:460px;overflow:auto;border-radius:12px;border:1px solid var(--stroke)}
+  dialog{border:none;padding:0;background:transparent;max-width:520px;width:92%}
+  dialog::backdrop{background:rgba(3,8,16,.66);backdrop-filter:blur(3px)}
+  .sheet{padding:20px;border-radius:20px}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13.5px;margin:12px 0}
+  .kv span{color:var(--muted)}
+  textarea{width:100%;min-height:82px;padding:11px;border-radius:12px;border:1px solid var(--stroke);background:var(--panel-2);color:var(--fg);font-family:var(--ff-b);font-size:13.5px}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .explain{font-size:12.8px;line-height:1.7;color:var(--muted);white-space:pre-wrap;margin-top:10px}
+  .kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+  .kpi div{padding:12px;border-radius:14px;border:1px solid var(--stroke);background:var(--panel-2)}
+  .kpi b{display:block;font-family:var(--ff-d);font-size:22px}
+  .kpi small{color:var(--muted);font-size:11.5px}
+  .hist{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  footer{margin-top:22px;text-align:center;font-size:12px;color:var(--muted)}
+  @media (max-width:900px){.grid2{grid-template-columns:1fr}.plate{transform:none;width:100%}.stage{perspective:none;padding:6px 0;min-height:0;display:block}}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top glass">
+    <div class="brand">
+      <div class="logo">🏛️</div>
+      <div>
+        <h1>SMART-SEARCH FLOOR MANAGER</h1>
+        <p>Find the right room. Right now. — availability from the actual SRM IST timetables</p>
+      </div>
+    </div>
+    <div class="clockbox">
+      <div class="pill">📅 Today: <b id="todayTxt">—</b></div>
+      <div class="pill">⏱ <b id="clockTxt">—</b></div>
+      <button id="refreshBtn" title="Recalculate everything from the current time">↻ Refresh availability</button>
+      <button id="themeBtn" aria-label="Toggle light and dark mode">🌙 Dark</button>
+    </div>
+  </header>
+
+  <nav class="tabs glass" role="tablist" aria-label="Main sections">
+    <button role="tab" data-view="overview" aria-selected="true">🏠 Overview</button>
+    <button role="tab" data-view="search" aria-selected="false">🔍 Smart Search</button>
+    <button role="tab" data-view="grid" aria-selected="false">🏢 Floor Grid</button>
+    <button role="tab" data-view="map" aria-selected="false">🗺 Building Map</button>
+    <button role="tab" data-view="timetable" aria-selected="false">📋 Timetable</button>
+    <button role="tab" data-view="selected" aria-selected="false">📍 Selected Room</button>
+  </nav>
+
+  <!-- ================= SEARCH CONTROL PANEL (shared) ================= -->
+  <div class="glass card" style="margin-bottom:14px">
+    <h3>🔍 AI Room Finder</h3>
+    <div class="searchrow">
+      <input type="text" id="nlq" placeholder="Tell me what room you need..." aria-label="Describe the room you need" />
+      <button class="primary" id="findBtn">🔍 Find My Room</button>
+    </div>
+    <div class="chips" id="examples">
+      <button class="chip" data-q="Which rooms are free right now?">Free right now</button>
+      <button class="chip" data-q="Find an AC room on the ground floor">AC ground floor</button>
+      <button class="chip" data-q="Give me a room for the next 2 hours">Next 2 hours</button>
+      <button class="chip" data-q="Show me empty rooms on the fifth floor">Empty 5th floor</button>
+      <button class="chip" data-q="Find a room for my team tomorrow from 2 to 4 PM">Tomorrow 2–4 PM</button>
+    </div>
+    <div class="chips" style="margin-top:12px" id="quick">
+      <button class="chip on" data-dur="now">Available now</button>
+      <button class="chip" data-dur="30">Next 30 min</button>
+      <button class="chip" data-dur="60">Next 1 hour</button>
+      <button class="chip" data-dur="120">Next 2 hours</button>
+      <button class="chip" data-dur="180">Next 3 hours</button>
+      <button class="chip" data-dur="custom">Custom time</button>
+    </div>
+    <div class="filters" style="margin-top:14px">
+      <div><label class="fl" for="fDate">Date</label><input type="date" id="fDate"></div>
+      <div><label class="fl" for="fStart">Start time</label><input type="time" id="fStart"></div>
+      <div><label class="fl" for="fEnd">End time</label><input type="time" id="fEnd"></div>
+      <div><label class="fl" for="fFloor">Floor</label><select id="fFloor"></select></div>
+      <div><label class="fl" for="fBuilding">Building</label><select id="fBuilding"></select></div>
+      <div><label class="fl" for="fRoom">Room</label><select id="fRoom"></select></div>
+      <div><label class="fl" for="fAc">Air conditioning</label><select id="fAc">
+        <option value="any">Any</option><option value="ac">AC only</option><option value="nonac">Non-AC only</option></select></div>
+      <div><label class="fl" for="fCap">Minimum capacity</label><input type="number" id="fCap" min="0" placeholder="Any"></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button id="useNowBtn">Use current time</button>
+      <button id="applyBtn" class="primary">Apply filters</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+    <div id="histWrap" class="hist"></div>
+  </div>
+
+  <!-- ================= OVERVIEW ================= -->
+  <section class="view on" id="v-overview">
+    <div class="grid2">
+      <div class="glass card">
+        <h3>Live campus snapshot</h3>
+        <div class="kpi" id="kpi"></div>
+        <p class="muted" id="daynote" style="margin-top:12px"></p>
+        <div class="legend" style="margin-top:10px">
+          <span><i class="statusdot s-free"></i> 🟢 AVAILABLE</span>
+          <span><i class="statusdot s-busy"></i> 🔴 OCCUPIED</span>
+          <span><i class="statusdot s-limited"></i> 🟡 LIMITED (class soon)</span>
+          <span><i class="statusdot s-unknown"></i> ⚪ UNKNOWN</span>
+        </div>
+      </div>
+      <div class="glass card">
+        <h3>How this result was calculated</h3>
+        <div class="explain" id="explain">Run a search to see the exact reasoning.</div>
+      </div>
+    </div>
+    <div class="glass card" style="margin-top:14px">
+      <h3>Top matches <span class="muted" id="ovCount"></span></h3>
+      <div class="results" id="ovResults"></div>
+    </div>
+  </section>
+
+  <!-- ================= SEARCH ================= -->
+  <section class="view" id="v-search">
+    <div class="glass card">
+      <h3 id="resHeading">Room results</h3>
+      <p class="muted" id="resNote"></p>
+      <div class="results" id="results"></div>
+      <div id="noRes" style="display:none"></div>
+    </div>
+  </section>
+
+  <!-- ================= FLOOR GRID ================= -->
+  <section class="view" id="v-grid">
+    <div class="glass card">
+      <h3>Smart Floor Grid</h3>
+      <div class="floorbar" id="floorbarGrid"></div>
+      <div class="fgrid" id="fgrid"></div>
+    </div>
+  </section>
+
+  <!-- ================= MAP ================= -->
+  <section class="view" id="v-map">
+    <div class="glass card">
+      <h3>Schematic Building Map <span class="muted">— isometric floor plate, not an architectural blueprint</span></h3>
+      <div class="floorbar" id="floorbarMap"></div>
+      <div class="stage"><div class="plate" id="plate"></div></div>
+      <div class="legend"><span><i class="statusdot s-free"></i> Available</span><span><i class="statusdot s-busy"></i> Occupied</span><span><i class="statusdot s-limited"></i> Limited</span><span><i class="statusdot s-unknown"></i> Unknown</span></div>
+    </div>
+  </section>
+
+  <!-- ================= TIMETABLE ================= -->
+  <section class="view" id="v-timetable">
+    <div class="glass card">
+      <h3>View Timetable Data <span class="muted" id="ttCount"></span></h3>
+      <div class="filters" style="margin-bottom:10px">
+        <div><label class="fl" for="ttSection">Section</label><select id="ttSection"></select></div>
+        <div><label class="fl" for="ttDay">Day</label><select id="ttDay"></select></div>
+        <div><label class="fl" for="ttRoom">Room</label><select id="ttRoom"></select></div>
+      </div>
+      <div class="scroll"><table><thead><tr><th>Section</th><th>Day</th><th>Start</th><th>End</th><th>Subject</th><th>Room</th><th>Floor</th><th>Source file</th></tr></thead><tbody id="ttBody"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- ================= SELECTED ROOM ================= -->
+  <section class="view" id="v-selected">
+    <div class="glass card" id="selWrap"><h3>No room selected yet</h3><p class="muted">Pick a room from the results, the floor grid or the building map.</p></div>
+  </section>
+
+  <footer>Availability is computed live from 13 class-section timetables in the 10 supplied PDF datasets. Claiming a room is an on-screen selection for your group only — it does not officially reserve anything.</footer>
+</div>
+
+<dialog id="roomDlg"><div class="sheet glass" id="dlgBody"></div></dialog>
+
+<script>
+/* ============================================================
+   1. DATASET — transcribed verbatim from the supplied timetables
+   ============================================================ */
+const GRIDS = {
+  senior:[["09:00","09:50"],["09:50","10:40"],["10:50","11:40"],["11:40","12:30"],["12:30","13:20"],["13:20","14:10"],["14:10","15:00"],["15:10","16:00"],["16:00","16:50"]],
+  first :[["09:00","09:50"],["09:55","10:45"],["10:50","11:40"],["11:45","12:35"],["12:35","13:30"],["13:30","14:20"],["14:25","15:15"],["15:20","16:10"],["16:15","17:05"]]
+};
+const DAYS=["Monday","Tuesday","Wednesday","Thursday","Friday"];
+const ALLDAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+
+const SUB_2DS={A:"Transforms and Boundary Value Problems",B:"Solid State Devices",C:"Computer Organization and Architecture",D:"Digital Logic Design",E:"Electromagnetic Theory and Interference",F:"Professional Ethics",G:"Universal Human Values-II",H:"Verbal Reasoning",I:"Social Engineering",LAB:"Devices and Digital IC Laboratory"};
+const SUB_3ECE={A:"Discrete Mathematics",B:"Microprocessor, Microcontroller and Interfacing Techniques",C:"VLSI Design and Technology",D:"System and Network on Chip",E:"Machine Learning for All",F:"Community Connect",G:"Analytical and Logical Thinking Skills",H:"Indian Art Form",LAB:"VLSI Design / Microprocessor Laboratory"};
+const SUB_3DS={A:"Discrete Mathematics",B:"Microprocessor, Microcontroller and Interfacing Techniques",C:"VLSI Design and Technology",D:"Machine Learning for All",E:"Database Design and Management",F:"Community Connect",G:"Analytical and Logical Thinking Skills",H:"Indian Art Form",LAB:"VLSI Design / Microprocessor Laboratory"};
+const SUB_4ECE={A:"Behavioural Psychology",B:"Wireless Communication and Antenna Systems",C:"Computer Communication and Network Security",D:"Semiconductor Memory Design",E:"Scripting Language for Electronic Design Automation",F:"Machine Learning for All",LAB:"Computer Communication and Network Security Lab"};
+const SUB_1Y={A:"Advanced Calculus and Complex Analysis",B:"Chemistry",C:"Electronic System and PCB Design",D:"Programming for Problem Solving",E:"Philosophy of Engineering",F:"Biology",G:"Electrical Circuits"};
+const SUB_1BIO={A:"Advanced Calculus and Complex Analysis",B:"Chemistry",C:"Cell Biology",D:"Programming for Problem Solving",E:"Philosophy of Engineering",F:"Biochemistry",G:"Biology: Human Physiology and Anatomy"};
+
+const SECTIONS=[
+ {id:"II-BME",name:"II Year BME (III Sem)",venue:"IST 602",grid:"senior",src:"II_BME.pdf",subs:{A:"Transforms and Boundary Value Problems",B:"Biomedical Signals and Systems",C:"Electric and Electronic Circuits",D:"Digital Logic for Medical Systems",E:"Medical Physics",F:"Professional Ethics",G:"Universal Human Values-II",H:"Verbal Reasoning",I:"Social Engineering"},rows:{
+  Monday:["E","C","I","I","","DLMS/EEC-107,309","DLMS/EEC-107,309","",""],
+  Tuesday:["C","E","B","A","","H-TB-106","H-TB-106","",""],
+  Wednesday:["B","D","A","","","H-TB-106","G-602","",""],
+  Thursday:["A","E","B","D","","","","DLMS/EEC-107,309","DLMS/EEC-107,309"],
+  Friday:["F","A","C","D","","","","G-602","G-602"]}},
+
+ {id:"II-ECE-DS-A",name:"II Year ECE-DS A (III Sem)",venue:"IST 416",grid:"senior",src:"II_ECE_DS_A.pdf",subs:SUB_2DS,rows:{
+  Monday:["E","A","I","I","","G-602","G-602","LAB-309/107","LAB-309/107"],
+  Tuesday:["C","A","E","D","","G-602","","H-TB-106","H-TB-106"],
+  Wednesday:["A","B","C","D","","","H-TB-106","",""],
+  Thursday:["B","C","A","F","","LAB-309/107","LAB-309/107","",""],
+  Friday:["D","B","E","C","","","","",""]}},
+
+ {id:"II-ECE-DS-B",name:"II Year ECE-DS B (III Sem)",venue:"IST 411",grid:"senior",src:"II_ECE_DS_B.pdf",subs:SUB_2DS,rows:{
+  Monday:["","","LAB-309/107","LAB-309/107","","D","B","C","I"],
+  Tuesday:["LAB-309/107","LAB-309/107","","","","C","D","E","A"],
+  Wednesday:["G-401","","","","","I","E","A","D"],
+  Thursday:["G-401","G-401","H-TB-106","H-TB-106","","A","C","B","E"],
+  Friday:["H-TB-106","","","","","F","A","B","C"]}},
+
+ {id:"III-BME",name:"III Year BME (V Sem)",venue:"IST 211",grid:"senior",src:"III_BME.pdf",subs:{A:"Probability and Statistics",B:"Microcontrollers and Its Application in Medicine",C:"Biomedical Signal Processing",D:"Biometrics",E:"Modern Wireless Communication System",F:"Principles of Medical Imaging",G:"Analytical and Logical Thinking Skills",H:"Indian Art Form",I:"Community Connect"},rows:{
+  Monday:["G-625","G-625","MPMC LAB-107","","","E","B","F","H"],
+  Tuesday:["BIO DSP LAB-108","BIO DSP LAB-108","G-625","","","C","D","A","B"],
+  Wednesday:["","","","","","C","A","F","D"],
+  Thursday:["","","","I-108","","A","C","E","B"],
+  Friday:["I-108","","","","","F","A","D","E"]}},
+
+ {id:"III-ECE-A",name:"III Year ECE-A (V Sem)",venue:"IST 518",grid:"senior",src:"III_ECE_A.pdf",subs:SUB_3ECE,rows:{
+  Monday:["E","B","B","A","","G-625","G-625","",""],
+  Tuesday:["H","D","B","B-Proj","","","G-625","",""],
+  Wednesday:["C","A","D","F","","","","LAB-108/309","LAB-108/309"],
+  Thursday:["A","E","C","F","","","","",""],
+  Friday:["D","A","E","C","","LAB-108/309","LAB-108/309","",""]}},
+
+ {id:"III-ECE-B",name:"III Year ECE-B (V Sem)",venue:"IST 518",grid:"senior",src:"III_ECE_B.pdf",subs:SUB_3ECE,rows:{
+  Monday:["LAB-108/309","LAB-108/309","","","","E","B","A","D"],
+  Tuesday:["G-625","G-625","","","","F","B","D","C"],
+  Wednesday:["G-625","","","","","B-Proj","B","A","H"],
+  Thursday:["LAB-108/309","LAB-108/309","","","","A","C","E","F"],
+  Friday:["","","","","","C","A","E","D"]}},
+
+ {id:"III-ECE-DS",name:"III Year ECE-DS (V Sem)",venue:"IST 519",grid:"senior",src:"III_ECE_DS.pdf",subs:SUB_3DS,rows:{
+  Monday:["E","B","C","A","","","","",""],
+  Tuesday:["C","B","D","F","","LAB-108/107","LAB-108/107","",""],
+  Wednesday:["H","B","A","C","","","","G-625","G-625"],
+  Thursday:["A","D","E","F","","","","",""],
+  Friday:["D","A","E","B-Proj","","G-625","","LAB-108/107","LAB-108/107"]}},
+
+ {id:"IV-ECE-A",name:"IV Year ECE-A (VII Sem)",venue:"IST 225",grid:"senior",src:"IV_ECE_A.pdf",subs:SUB_4ECE,rows:{
+  Monday:["C","","A","D","","","","",""],
+  Tuesday:["C","D","B","F","","","","",""],
+  Wednesday:["B","LAB - IST 108","E","F","","","","",""],
+  Thursday:["F","A","E","B","","","","",""],
+  Friday:["C","A","D","E","","","","",""]}},
+
+ {id:"IV-ECE-B",name:"IV Year ECE-B (VII Sem)",venue:"IST 227",grid:"senior",src:"IV_ECE_B.pdf",subs:SUB_4ECE,rows:{
+  Monday:["C","A","E","F","","","","",""],
+  Tuesday:["C","E","F","B","","","","",""],
+  Wednesday:["C","D","A","B","","","","",""],
+  Thursday:["D","B","LAB - IST 108","A","","","","",""],
+  Friday:["E","D","F","","","","","",""]}},
+
+ {id:"I-ECE-A",name:"I Year ECE-A (I Sem)",venue:null,grid:"first",src:"I_year_Time_Table_SEEE.pdf (p1)",subs:SUB_1Y,rows:{
+  Monday:["E IST602","E IST602","B IST602","A IST602","","Che lab","Che lab","F IST710","CDC IST710"],
+  Tuesday:["C IST602","B IST602","A IST602","D IST602","","Workshop (IST 20,21)","Workshop (IST 20,21)","Workshop (IST 20,21)","Workshop (IST 20,21)"],
+  Wednesday:["B IST602","E IST602","D IST602","","","PPS Lab IST618","PPS Lab","PCB Lab IST108",""],
+  Thursday:["","German IST602","German IST602","A IST602","","CDC IST510","CDC IST510","NSS IST201",""],
+  Friday:["D IST602","A IST602","C IST602","B IST602","","F IST602","German IST626","German IST626","German IST626"]}},
+
+ {id:"I-ECE-B-EEE",name:"I Year ECE-B & EEE (I Sem)",venue:null,grid:"first",src:"I_year_Time_Table_SEEE.pdf (p2)",subs:SUB_1Y,rows:{
+  Monday:["CDC IST609","F IST710 / G IST520","Che lab","Che lab","","E IST602","E IST602","B IST602","A IST602"],
+  Tuesday:["Workshop (IST 20,21)","Workshop (IST 20,21)","Workshop (IST 20,21)","Workshop (IST 20,21)","","C IST602","B IST602","A IST602","D IST602"],
+  Wednesday:["F IST710 / G IST520","PPS Lab IST617","CDC IST510","CDC IST510","PPS Lab IST618","","B IST602","E IST602","D IST602"],
+  Thursday:["NSS IST201","NSS IST201","C IST626","A IST710","","D IST602","German IST602","German IST602","German IST602"],
+  Friday:["PCB Lab / EC Lab IST617","PCB Lab / EC Lab IST617","","German IST626","German IST626","German IST626","","B IST602","A IST602"]}},
+
+ {id:"I-ECE-DS",name:"I Year ECE-DS (I Sem)",venue:null,grid:"first",src:"I_year_Time_Table_SEEE.pdf (p3)",subs:SUB_1Y,rows:{
+  Monday:["F IST710","CDC","PCB Lab IST617","PCB Lab IST617","","E IST502","E IST502","B IST502","A IST502"],
+  Tuesday:["Che lab","Che lab","NSS IST201","NSS IST201","","C IST502","B IST502","A IST502","D IST502"],
+  Wednesday:["CDC IST510","CDC IST510","A IST710","","PPS Lab IST617","PPS Lab IST617","B IST502","E IST502","D IST502"],
+  Thursday:["F IST710","A IST510","D IST710","German IST502","German IST502","German IST502","","C IST502","B IST502"],
+  Friday:["German IST626","German IST626","German IST626","PPS Lab","","Workshop (IST 20,21)","Workshop (IST 20,21)","Workshop (IST 20,21)","Workshop (IST 20,21)"]}},
+
+ {id:"I-BIO-BME",name:"I Year Biotech-B & Biomedical (I Sem)",venue:null,grid:"first",src:"I_year_Time_Table_SEEE.pdf (p4)",subs:SUB_1BIO,rows:{
+  Monday:["C IST520","YOGA","YOGA","F IST710 / G IST520","","E IST702","E IST702","A IST702","B IST702"],
+  Tuesday:["CDC IST710","CDC IST710","C IST520","F IST710","","","B IST702","A IST702","D IST702"],
+  Wednesday:["Workshop (IST 20,21)","Workshop (IST 20,21)","Workshop (IST 20,21)","Workshop (IST 20,21)","","D IST702","B IST702","E IST702","D IST702"],
+  Thursday:["Che lab","Che lab","A IST710","C IST510 / G IST520","","B IST702","Japanese IST702","Japanese IST702",""],
+  Friday:["F IST702","CDC IST702","A IST702","Japanese IST702","Japanese IST702","Japanese IST702","","PPS Lab","PPS Lab"]}}
+];
+
+/* ============================================================
+   2. NORMALISATION — one internal timetable structure
+   ============================================================ */
+const LABELS={"CDC":"CDC session (Career Development)","Che lab":"Chemistry Laboratory","PPS Lab":"Programming for Problem Solving Laboratory",
+ "PCB Lab":"Electronic System and PCB Design Laboratory","PCB Lab / EC Lab":"PCB / Electronic Circuits Laboratory","NSS":"NSS","YOGA":"Physical and Mental Health using Yoga",
+ "Workshop":"Basic Civil and Mechanical Workshop","German":"German","Japanese":"Japanese","MPMC LAB":"Microprocessor & Microcontroller Laboratory",
+ "BIO DSP LAB":"Biomedical Signal Processing Laboratory","LAB":"Laboratory","DLMS/EEC":"Digital Logic / Electronic Circuits Laboratory"};
+const toMin=t=>{const[a,b]=t.split(":").map(Number);return a*60+b};
+const fmt12=m=>{m=((m%1440)+1440)%1440;let h=Math.floor(m/60),x=m%60,s=h>=12?"PM":"AM";h=h%12||12;return h+":"+String(x).padStart(2,"0")+" "+s};
+const hhmm=m=>String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");
+
+function roomsFrom(cell){
+  let out=[],used=[];
+  const push=r=>{if(!out.includes(r))out.push(r)};
+  cell.replace(/TB\s*-?\s*(\d{2,3})/gi,(m,n)=>{push("TB "+n);used.push(m);return""});
+  let rest=cell; used.forEach(u=>rest=rest.replace(u,""));
+  rest.replace(/IST\s*-?\s*(\d{2,3})/gi,(m,n)=>{push("IST "+n);return ""});
+  let bare=rest.replace(/IST\s*-?\s*\d{2,3}/gi,"");
+  (bare.match(/\d{2,3}/g)||[]).forEach(n=>push("IST "+n));
+  return out;
+}
+function subjectOf(sec,cell){
+  let t=cell.replace(/TB\s*-?\s*\d{2,3}/gi,"").replace(/IST\s*-?\s*\d{2,3}/gi,"").replace(/[\d,()\/]+/g," ").replace(/\s*-\s*$/,"").trim();
+  if(/^B\s*-?\s*Proj/i.test(cell)) return (sec.subs.B||"Class")+" (Project)";
+  const key=Object.keys(LABELS).sort((a,b)=>b.length-a.length).find(k=>cell.toLowerCase().includes(k.toLowerCase()));
+  const letter=(t.match(/^([A-I])\b/)||[])[1];
+  if(letter&&sec.subs[letter]) return sec.subs[letter];
+  if(key) return LABELS[key];
+  return t?t.replace(/\s+/g," "):"Scheduled class";
+}
+const floorOf=r=>{const n=+r.split(" ")[1];return n<100?0:Math.floor(n/100)};
+const floorName=f=>f===0?"Ground floor":["","1st","2nd","3rd","4th","5th","6th","7th","8th","9th"][f]+" floor";
+const buildingOf=r=>r.startsWith("TB")?"Training Block":"IST Block";
+
+const ENTRIES=[];
+SECTIONS.forEach(sec=>{
+  const grid=GRIDS[sec.grid];
+  DAYS.forEach(day=>{
+    const row=sec.rows[day]||[];
+    row.forEach((cellRaw,i)=>{
+      const cell=(cellRaw||"").trim(); if(!cell) return;
+      const parts = (cell.includes("/") && cell.split("/").filter(p=>/IST\s*\d/i.test(p)).length>1) ? cell.split("/") : [cell];
+      parts.forEach(pRaw=>{
+        const p=pRaw.trim(); if(!p) return;
+        let rooms=roomsFrom(p);
+        if(!rooms.length && sec.venue) rooms=[sec.venue];
+        const subject=subjectOf(sec,p);
+        if(!rooms.length) rooms=[null];
+        rooms.forEach(room=>{
+          const prev=ENTRIES[ENTRIES.length-1];
+          const st=toMin(grid[i][0]),en=toMin(grid[i][1]);
+          if(prev&&prev.section===sec.id&&prev.day===day&&prev.room===room&&prev.subject===subject&&prev.endMin===st){prev.endMin=en;prev.endTime=grid[i][1];return}
+          ENTRIES.push({section:sec.id,sectionName:sec.name,day,period:i+1,startTime:grid[i][0],endTime:grid[i][1],startMin:st,endMin:en,
+            subject,room,floor:room?floorOf(room):null,building:room?buildingOf(room):null,ac:null,capacity:null,src:sec.src});
+        });
+      });
+    });
+  });
+});
+const ROOMS=[...new Set(ENTRIES.filter(e=>e.room).map(e=>e.room))].sort((a,b)=>{
+  const fa=floorOf(a),fb=floorOf(b);return a.split(" ")[0].localeCompare(b.split(" ")[0])||fa-fb||(+a.split(" ")[1])-(+b.split(" ")[1])});
+const FLOORS=[...new Set(ROOMS.map(floorOf))].sort((a,b)=>a-b);
+const DAYEND=Math.max(...ENTRIES.map(e=>e.endMin));
+
+/* ============================================================
+   3. AVAILABILITY ENGINE (single source of truth)
+   ============================================================ */
+const entriesFor=(room,day)=>ENTRIES.filter(e=>e.room===room&&e.day===day).sort((a,b)=>a.startMin-b.startMin);
+function roomStatus(room,day,start,end){
+  const list=entriesFor(room,day);
+  const clash=list.filter(e=>start<e.endMin&&end>e.startMin);          // interval overlap, touching ends are free
+  const now=list.find(e=>start>=e.startMin&&start<e.endMin);
+  const next=list.find(e=>e.startMin>=end);
+  const freeUntil=clash.length?null:(list.find(e=>e.startMin>=start)?list.find(e=>e.startMin>=start).startMin:DAYEND);
+  let state = clash.length ? "busy" : ((freeUntil-start)<=30 ? "limited" : "free");
+  return {room,day,state,busyWith:clash[0]||null,current:now||null,next:next||clash[0]||list.find(e=>e.startMin>=start)||null,
+          freeUntil,noData:list.length===0};
+}
+function search(q){
+  const day=ALLDAYS[q.date.getDay()];
+  const rows=ROOMS.map(r=>roomStatus(r,day,q.start,q.end)).map(s=>{
+    const why=[],warn=[];
+    const f=floorOf(s.room);
+    let ok=s.state!=="busy";
+    if(q.floor!=null){ if(f===q.floor) why.push("On the requested "+floorName(f).toLowerCase()); else ok=false; }
+    if(q.building){ if(buildingOf(s.room)===q.building) why.push("In "+q.building); else ok=false; }
+    if(q.room){ if(s.room===q.room) why.push("Exact room requested"); else ok=false; }
+    if(ok) why.push("Free for the whole window "+fmt12(q.start)+" – "+fmt12(q.end));
+    if(q.ac&&q.ac!=="any") warn.push("AC status is not specified in the timetable dataset");
+    if(q.capacity) warn.push("Capacity is not specified in the timetable dataset");
+    if(s.noData) warn.push("No class is scheduled in this room on "+day+" in the dataset");
+    return {...s,ok,why,warn,floor:f};
+  });
+  const matches=rows.filter(r=>r.ok).sort((a,b)=>b.freeUntil-a.freeUntil);
+  return {day,rows,matches};
+}
+
+/* ============================================================
+   4. NATURAL LANGUAGE PARSER
+   ============================================================ */
+const WORDFLOOR={ground:0,zero:0,first:1,"1st":1,one:1,second:2,"2nd":2,two:2,third:3,"3rd":3,three:3,fourth:4,"4th":4,four:4,fifth:5,"5th":5,five:5,sixth:6,"6th":6,six:6,seventh:7,"7th":7,seven:7};
+function parseNL(text){
+  const t=" "+text.toLowerCase().replace(/\s+/g," ")+" ", out={notes:[],understood:false};
+  // date
+  const base=new Date();
+  if(/\btomorrow\b/.test(t)){base.setDate(base.getDate()+1);out.notes.push("Date: tomorrow");out.understood=true}
+  ALLDAYS.forEach((d,i)=>{ if(new RegExp("\\b"+d.toLowerCase()+"\\b").test(t)){ let add=(i-base.getDay()+7)%7; if(add===0&&!/\btoday\b/.test(t))add=7; base.setDate(base.getDate()+add); out.notes.push("Day: "+d); out.understood=true; }});
+  out.date=base;
+  // floor
+  let m=t.match(/\b(ground|zero|first|1st|one|second|2nd|two|third|3rd|three|fourth|4th|four|fifth|5th|five|sixth|6th|six|seventh|7th|seven)\s+floor\b/)||t.match(/\bfloor\s+(\d)\b/);
+  if(m){out.floor=isNaN(+m[1])?WORDFLOOR[m[1]]:+m[1];out.notes.push("Floor: "+floorName(out.floor));out.understood=true}
+  // explicit room
+  m=t.match(/\b(?:ist|tb)\s*-?\s*(\d{2,3})\b/);
+  if(m){const cand=(/tb/.test(m[0])?"TB ":"IST ")+m[1]; if(ROOMS.includes(cand)){out.room=cand;out.notes.push("Room: "+cand);out.understood=true}}
+  // building
+  if(/training block|\btb\b/.test(t)){out.building="Training Block";out.notes.push("Building: Training Block");out.understood=true}
+  else if(/ist block/.test(t)){out.building="IST Block";out.notes.push("Building: IST Block");out.understood=true}
+  // AC
+  if(/\bnon[-\s]?ac\b/.test(t)){out.ac="nonac";out.notes.push("Non-AC requested — not verifiable from the dataset");out.understood=true}
+  else if(/\bac\b|air[-\s]?condition/.test(t)){out.ac="ac";out.notes.push("AC requested — not verifiable from the dataset");out.understood=true}
+  // capacity / team
+  m=t.match(/\b(?:for|fits?|seats?)\s+(\d{1,3})\s*(?:people|students|of us|persons?)\b/);
+  if(m){out.capacity=+m[1];out.notes.push("Capacity "+m[1]+" — not specified in the dataset");out.understood=true}
+  else if(/\b(team|squad|group|friends|us)\b/.test(t)){out.team=true;out.notes.push("Group request noted (capacity not in the dataset)");out.understood=true}
+  // explicit window "from 2 to 4 pm"
+  const tm=/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/g;
+  const win=t.match(/\bfrom\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:to|until|till|-|–)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/)
+        || t.match(/\bbetween\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:and|to)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
+  const conv=(h,mm,ap)=>{h=+h;mm=+(mm||0);if(ap==="pm"&&h<12)h+=12;if(ap==="am"&&h===12)h=0;if(!ap&&h<8)h+=12;return h*60+mm};
+  if(win){out.start=conv(win[1],win[2],win[3]||win[6]);out.end=conv(win[4],win[5],win[6]);out.notes.push("Window: "+fmt12(out.start)+" – "+fmt12(out.end));out.understood=true}
+  else{
+    const at=t.match(/\bat\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
+    if(at){out.start=conv(at[1],at[2],at[3]);out.notes.push("Start: "+fmt12(out.start));out.understood=true}
+    const d1=t.match(/\b(\d+(?:\.\d+)?)\s*(hour|hr|h)s?\b/), d2=t.match(/\b(\d+)\s*(minute|min)s?\b/);
+    if(d1){out.duration=Math.round(parseFloat(d1[1])*60);out.notes.push("Duration: "+d1[1]+" hour(s)");out.understood=true}
+    else if(d2){out.duration=+d2[1];out.notes.push("Duration: "+d2[1]+" minutes");out.understood=true}
+    else if(/half an hour/.test(t)){out.duration=30;out.understood=true}
+  }
+  if(/right now|now|currently|free now|at the moment/.test(t)){out.now=true;out.understood=true}
+  if(/free|empty|available|vacant|open/.test(t))out.understood=true;
+  return out;
+}
+
+/* ============================================================
+   5. STATE + UI
+   ============================================================ */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const S={date:new Date(),start:null,end:null,duration:"now",floor:null,building:null,room:null,ac:"any",capacity:null,
+         highlight:[],selected:null,claimed:false,lastQuery:"",lastResult:null,notes:[]};
+const LS={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+function nowMin(){const d=new Date();return d.getHours()*60+d.getMinutes()}
+function isToday(){const n=new Date();return S.date.toDateString()===n.toDateString()}
+function window_(){ // resolved search window
+  let start = S.start!=null?S.start:(isToday()?nowMin():toMin("09:00"));
+  let end;
+  if(S.end!=null && S.end>start) end=S.end;
+  else{ const d = S.duration==="now"?0:(+S.duration||0); end = d?start+d:start+1; }
+  return {start,end:Math.min(end,24*60-1)};
+}
+function theme(t){document.documentElement.dataset.theme=t;$("#themeBtn").textContent=t==="dark"?"🌙 Dark":"☀ Light";LS.set("ssfm-theme",t)}
+theme(LS.get("ssfm-theme","dark"));
+$("#themeBtn").onclick=()=>theme(document.documentElement.dataset.theme==="dark"?"light":"dark");
+
+// ---- populate selects
+function opt(sel,items,label,first){sel.innerHTML=`<option value="">${first}</option>`+items.map(i=>`<option value="${i}">${label(i)}</option>`).join("")}
+opt($("#fFloor"),FLOORS,f=>floorName(f),"Any floor");
+opt($("#fBuilding"),[...new Set(ROOMS.map(buildingOf))],b=>b,"Any building");
+opt($("#fRoom"),ROOMS,r=>r,"Any room");
+opt($("#ttSection"),SECTIONS.map(s=>s.id),id=>SECTIONS.find(s=>s.id===id).name,"All sections");
+opt($("#ttDay"),DAYS,d=>d,"All days");
+opt($("#ttRoom"),ROOMS,r=>r,"All rooms");
+
+// ---- clock
+function tickClock(){
+  const n=new Date();
+  $("#todayTxt").textContent=n.toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"});
+  $("#clockTxt").textContent=n.toLocaleTimeString("en-GB",{hour12:false});
+}
+// ---- tabs
+$$("nav.tabs button").forEach(b=>b.onclick=()=>{
+  $$("nav.tabs button").forEach(x=>x.setAttribute("aria-selected",x===b));
+  $$("section.view").forEach(v=>v.classList.remove("on"));
+  $("#v-"+b.dataset.view).classList.add("on");
+});
+const goto=v=>{const b=$$("nav.tabs button").find(x=>x.dataset.view===v);b&&b.click()};
+
+// ---- quick duration chips
+$$("#quick .chip").forEach(c=>c.onclick=()=>{
+  $$("#quick .chip").forEach(x=>x.classList.remove("on"));c.classList.add("on");
+  S.duration=c.dataset.dur;
+  if(c.dataset.dur==="custom"){S.start=S.start??nowMin();$("#fStart").value=hhmm(S.start);$("#fEnd").value=hhmm(Math.min(S.start+60,1439));S.end=toMin($("#fEnd").value);}
+  else{S.end=null;if(isToday())S.start=null;}
+  render();
+});
+$$("#examples .chip").forEach(c=>c.onclick=()=>{$("#nlq").value=c.dataset.q;runNL()});
+$("#useNowBtn").onclick=()=>{S.date=new Date();S.start=null;S.end=null;$("#fDate").value=S.date.toISOString().slice(0,10);$("#fStart").value="";$("#fEnd").value="";render()};
+$("#refreshBtn").onclick=()=>{if(isToday()){S.start=null;S.end=S.end&&null}render()};
+$("#applyBtn").onclick=()=>{
+  S.date=$("#fDate").value?new Date($("#fDate").value+"T00:00:00"):new Date();
+  S.start=$("#fStart").value?toMin($("#fStart").value):null;
+  S.end=$("#fEnd").value?toMin($("#fEnd").value):null;
+  S.floor=$("#fFloor").value===""?null:+$("#fFloor").value;
+  S.building=$("#fBuilding").value||null; S.room=$("#fRoom").value||null;
+  S.ac=$("#fAc").value; S.capacity=$("#fCap").value?+$("#fCap").value:null;
+  if(S.end!=null&&S.start!=null)S.duration="custom";
+  S.highlight=[];render();goto("search");
+};
+$("#resetBtn").onclick=()=>{Object.assign(S,{date:new Date(),start:null,end:null,duration:"now",floor:null,building:null,room:null,ac:"any",capacity:null,highlight:[],notes:[],lastQuery:""});
+  $("#fDate").value=new Date().toISOString().slice(0,10);["#fStart","#fEnd","#fCap"].forEach(s=>$(s).value="");["#fFloor","#fBuilding","#fRoom"].forEach(s=>$(s).value="");$("#fAc").value="any";$("#nlq").value="";
+  $$("#quick .chip").forEach((x,i)=>x.classList.toggle("on",i===0));render()};
+$("#findBtn").onclick=runNL;
+$("#nlq").addEventListener("keydown",e=>{if(e.key==="Enter")runNL()});
+
+function runNL(){
+  const q=$("#nlq").value.trim(); if(!q)return;
+  const p=parseNL(q);
+  if(!p.understood){
+    S.notes=["I couldn't determine your room requirements.","Tell me at least one of: floor, duration, time, or room type — e.g. \"free room on the 5th floor for 2 hours\"."];
+    S.lastQuery=q;render();goto("search");return;
+  }
+  S.date=p.date||new Date();
+  S.floor=p.floor??null; S.building=p.building||null; S.room=p.room||null;
+  S.ac=p.ac||"any"; S.capacity=p.capacity||null;
+  if(p.start!=null&&p.end!=null){S.start=p.start;S.end=p.end;S.duration="custom"}
+  else if(p.start!=null){S.start=p.start;S.end=null;S.duration=p.duration||60}
+  else if(p.duration){S.start=isToday()?null:toMin("09:00");S.end=null;S.duration=p.duration}
+  else{S.start=isToday()?null:toMin("09:00");S.end=null;S.duration="now"}
+  S.notes=p.notes; S.lastQuery=q;
+  $("#fDate").value=S.date.toISOString().slice(0,10);
+  $("#fFloor").value=S.floor==null?"":S.floor; $("#fBuilding").value=S.building||""; $("#fRoom").value=S.room||""; $("#fAc").value=S.ac;
+  const hist=[q,...LS.get("ssfm-hist",[]).filter(h=>h!==q)].slice(0,6); LS.set("ssfm-hist",hist);
+  render(); goto("search");
+}
+function renderHist(){
+  const h=LS.get("ssfm-hist",[]);
+  $("#histWrap").innerHTML = h.length? `<span class="muted" style="align-self:center">Recent:</span>`+
+    h.map((q,i)=>`<button class="chip" data-h="${i}">${q.length>34?q.slice(0,34)+"…":q}</button>`).join("")+
+    `<button class="chip" data-clear="1">Clear history</button>` : "";
+  $$("#histWrap [data-h]").forEach(b=>b.onclick=()=>{$("#nlq").value=h[+b.dataset.h];runNL()});
+  const c=$("#histWrap [data-clear]"); if(c)c.onclick=()=>{LS.set("ssfm-hist",[]);renderHist()};
+}
+
+/* ---------- render ---------- */
+let activeFloor=FLOORS.includes(5)?5:FLOORS[0];
+function cardFor(r,w){
+  const cd=r.state==="busy"?null:r.freeUntil;
+  return `<article class="rcard ${S.highlight.includes(r.room)?"hit":""}" tabindex="0" data-room="${r.room}">
+    <h4>${r.room} ${badge(r.state)}</h4>
+    <p class="meta">${floorName(r.floor)} · ${buildingOf(r.room)}<br>
+      ${r.state==="busy"
+        ? `Occupied: ${r.busyWith.subject} (${r.busyWith.sectionName})<br>Until ${fmt12(r.busyWith.endMin)}`
+        : `Free until <b>${fmt12(cd)}</b><br>Time remaining <span class="count" data-until="${cd}">—</span>`}
+      <br>❄️ AC: Not specified · 👥 Capacity: Not specified</p>
+    <ul class="why">${r.why.map(x=>`<li>${x}</li>`).join("")}${r.warn.map(x=>`<li class="no">${x}</li>`).join("")}</ul>
+  </article>`;
+}
+const badge=s=>({free:'<span class="badge b-free">🟢 AVAILABLE</span>',busy:'<span class="badge b-busy">🔴 OCCUPIED</span>',
+  limited:'<span class="badge b-limited">🟡 LIMITED</span>',unknown:'<span class="badge b-unknown">⚪ UNKNOWN</span>'})[s];
+
+function render(){
+  const w=window_(), q={date:S.date,start:w.start,end:w.end,floor:S.floor,building:S.building,room:S.room,ac:S.ac,capacity:S.capacity};
+  const res=search(q); S.lastResult=res;
+  S.highlight=res.matches.map(r=>r.room);
+  if(S.floor!=null&&FLOORS.includes(S.floor)) activeFloor=S.floor;
+  else if(res.matches.length&&!res.matches.some(r=>r.floor===activeFloor)) activeFloor=res.matches[0].floor;
+  const dayName=res.day, weekend=!DAYS.includes(dayName);
+
+  // KPIs
+  const free=res.rows.filter(r=>r.state==="free").length, lim=res.rows.filter(r=>r.state==="limited").length, busy=res.rows.filter(r=>r.state==="busy").length;
+  $("#kpi").innerHTML=`<div><b>${ROOMS.length}</b><small>rooms in the dataset</small></div>
+    <div><b>${SECTIONS.length}</b><small>class sections loaded</small></div>
+    <div><b>${ENTRIES.length}</b><small>timetable records</small></div>
+    <div><b style="color:var(--free)">${free}</b><small>🟢 available now in window</small></div>
+    <div><b style="color:var(--limited)">${lim}</b><small>🟡 limited</small></div>
+    <div><b style="color:var(--busy)">${busy}</b><small>🔴 occupied</small></div>`;
+  $("#daynote").textContent = weekend
+    ? `${dayName}: no scheduled classes found in the dataset — every room is shown as free for the whole day.`
+    : `Searching ${dayName}, ${S.date.toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"})} between ${fmt12(w.start)} and ${fmt12(w.end)}.`;
+
+  // results
+  const heading = S.notes.length&&!S.lastResult ? "" : `${res.matches.length} room${res.matches.length===1?"":"s"} match your request`;
+  $("#resHeading").textContent=heading;
+  $("#resNote").textContent = S.lastQuery?`Query: “${S.lastQuery}”`:`Window ${fmt12(w.start)} – ${fmt12(w.end)} on ${dayName}.`;
+  const cards=res.matches.map(r=>cardFor(r,w)).join("");
+  $("#results").innerHTML=cards;
+  $("#ovResults").innerHTML=res.matches.slice(0,6).map(r=>cardFor(r,w)).join("");
+  $("#ovCount").textContent=`(${res.matches.length} total)`;
+
+  // no results / unclear
+  const nr=$("#noRes");
+  if(S.notes.length&&S.notes[0].startsWith("I couldn't")){
+    nr.style.display="block";
+    nr.innerHTML=`<h4>${S.notes[0]}</h4><p class="muted">${S.notes[1]}</p>`;
+  }else if(!res.matches.length){
+    const alt=[];
+    const anyFloor=search({...q,floor:null,building:null,room:null}).matches;
+    if(S.floor!=null&&anyFloor.length) alt.push(`Try another floor — ${anyFloor.slice(0,4).map(r=>r.room+" ("+floorName(r.floor).toLowerCase()+")").join(", ")} are free in this window.`);
+    const shorter=search({...q,end:w.start+30}).matches;
+    if(w.end-w.start>30&&shorter.length) alt.push(`Shorten to 30 minutes — ${shorter.slice(0,4).map(r=>r.room).join(", ")} would work.`);
+    const later=search({...q,start:w.end,end:w.end+(w.end-w.start||60)}).matches;
+    if(later.length) alt.push(`Start later at ${fmt12(w.end)} — ${later.slice(0,4).map(r=>r.room).join(", ")} are free then.`);
+    if(S.ac!=="any") alt.push("Remove the AC requirement — AC status is not present in the timetable dataset, so it cannot be verified.");
+    nr.style.display="block";
+    nr.innerHTML=`<h4>No rooms match your request.</h4>`+(alt.length?`<ul class="muted">${alt.map(a=>`<li>${a}</li>`).join("")}</ul>`:`<p class="muted">Every room in the dataset is occupied for that whole window.</p>`);
+  }else nr.style.display="none";
+
+  // explanation
+  $("#explain").textContent=
+`REQUEST
+${S.lastQuery||"Filter panel selection"}
+${S.floor!=null?"• Floor: "+floorName(S.floor)+"\n":""}${S.building?"• Building: "+S.building+"\n":""}${S.room?"• Room: "+S.room+"\n":""}${S.ac!=="any"?"• AC: requested (not present in dataset)\n":""}${S.capacity?"• Capacity: "+S.capacity+" (not present in dataset)\n":""}• Duration: ${w.end-w.start} minutes
+
+SEARCH WINDOW
+${dayName} ${fmt12(w.start)} – ${fmt12(w.end)}
+
+TIMETABLES CHECKED
+${SECTIONS.length} class sections · ${ENTRIES.length} normalised records · ${ROOMS.length} rooms
+
+RULE
+A room matches only when no class overlaps any part of the window. A class ending exactly at the window start does not block the room.
+
+MATCHING ROOMS
+${res.matches.length?res.matches.map(r=>r.room+" (free until "+fmt12(r.freeUntil)+")").join("\n"):"none"}`;
+
+  // floor bars
+  [["#floorbarGrid","grid"],["#floorbarMap","map"]].forEach(([sel])=>{
+    $(sel).innerHTML=`<button data-nav="-1">‹ Previous floor</button>`+
+      FLOORS.map(f=>`<button class="chip ${f===activeFloor?"on":""}" data-floor="${f}">${floorName(f)}</button>`).join("")+
+      `<button data-nav="1">Next floor ›</button>`;
+  });
+  $$("[data-floor]").forEach(b=>b.onclick=()=>{activeFloor=+b.dataset.floor;render()});
+  $$("[data-nav]").forEach(b=>b.onclick=()=>{const i=FLOORS.indexOf(activeFloor)+ +b.dataset.nav;activeFloor=FLOORS[Math.max(0,Math.min(FLOORS.length-1,i))];render()});
+
+  // floor grid + map
+  const onFloor=res.rows.filter(r=>r.floor===activeFloor);
+  $("#fgrid").innerHTML=onFloor.map(r=>`<button class="rtile ${S.highlight.includes(r.room)?"hit":""}" data-room="${r.room}">
+      <b>${r.room}</b>${badge(r.state)}<small>${r.state==="busy"?"BUSY until "+fmt12(r.busyWith.endMin):"FREE until "+fmt12(r.freeUntil)}</small>
+      <small>${buildingOf(r.room)}</small></button>`).join("")||`<p class="muted">No rooms from the dataset on this floor.</p>`;
+  $("#plate").innerHTML=onFloor.map(r=>`<div class="mroom m-${r.state} ${S.highlight.includes(r.room)?"hit":""}" tabindex="0" role="button" data-room="${r.room}">
+      ${r.room}<span>${r.state==="busy"?"🔴 BUSY":r.state==="limited"?"🟡 SOON":"🟢 FREE"}</span></div>`).join("")||`<p class="muted">No rooms on this floor.</p>`;
+
+  // timetable table
+  const tSec=$("#ttSection").value,tDay=$("#ttDay").value,tRoom=$("#ttRoom").value;
+  const list=ENTRIES.filter(e=>(!tSec||e.section===tSec)&&(!tDay||e.day===tDay)&&(!tRoom||e.room===tRoom));
+  $("#ttCount").textContent=`— showing ${list.length} of ${ENTRIES.length} records`;
+  $("#ttBody").innerHTML=list.map(e=>`<tr><td>${e.sectionName}</td><td>${e.day}</td><td>${e.startTime}</td><td>${e.endTime}</td><td>${e.subject}</td><td>${e.room||"Not specified"}</td><td>${e.room?floorName(e.floor):"Not specified"}</td><td>${e.src}</td></tr>`).join("");
+
+  bindRoomClicks(); renderSelected(); renderHist(); tickCountdowns();
+}
+function bindRoomClicks(){
+  $$("[data-room]").forEach(el=>{
+    el.onclick=()=>openRoom(el.dataset.room);
+    el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openRoom(el.dataset.room)}};
+  });
+}
+["#ttSection","#ttDay","#ttRoom"].forEach(s=>$(s).onchange=render);
+
+/* ---------- room details, claim, squad ---------- */
+function statusOf(room){const w=window_();return search({date:S.date,start:w.start,end:w.end,floor:null,building:null,room:null,ac:S.ac,capacity:S.capacity}).rows.find(r=>r.room===room)}
+function openRoom(room){
+  S.selected=room; S.claimed=false; renderSelected();
+  const r=statusOf(room),w=window_();
+  $("#dlgBody").innerHTML=`
+    <h3 style="margin:0 0 4px">${room} ${badge(r.state)}</h3>
+    <p class="muted" style="margin:0">${floorName(r.floor)} · ${buildingOf(room)} · ${S.lastResult.day}</p>
+    <div class="kv">
+      <span>Current status</span><b>${r.state==="busy"?"Occupied":"Free"}</b>
+      ${r.state==="busy"?`<span>Occupied by</span><b>${r.busyWith.subject}</b><span>Section</span><b>${r.busyWith.sectionName}</b><span>Ends at</span><b>${fmt12(r.busyWith.endMin)}</b>`
+        :`<span>Available until</span><b>${fmt12(r.freeUntil)}</b><span>Countdown</span><b class="count" data-until="${r.freeUntil}">—</b>`}
+      ${r.next&&r.state!=="busy"?`<span>Next class</span><b>${r.next.subject}</b><span>Section</span><b>${r.next.sectionName}</b><span>Next class starts</span><b>${fmt12(r.next.startMin)}</b>`:``}
+      <span>AC</span><b>Not specified</b><span>Capacity</span><b>Not specified</b>
+    </div>
+    ${r.state!=="busy"?`<div class="row"><button class="primary" id="claimBtn">📍 Claim this room</button><button id="closeDlg">Close</button></div>
+      <div id="squad" style="margin-top:14px;display:none">
+        <h4 style="margin:0 0 6px">📲 Call the squad</h4>
+        <textarea id="waMsg"></textarea>
+        <div class="row" style="margin-top:8px">
+          <button class="primary" id="waShare">📲 Share on WhatsApp</button>
+          <button id="waCopy">Copy message</button><button id="waReset">Reset message</button>
+        </div><p class="muted" id="waNote" style="margin:8px 0 0">Room selected for your group — this does not officially reserve the room.</p>
+      </div>`
+      :`<div class="row"><button id="closeDlg">Close</button></div>`}`;
+  $("#roomDlg").showModal();
+  const cl=$("#closeDlg"); if(cl)cl.onclick=()=>$("#roomDlg").close();
+  const cb=$("#claimBtn");
+  if(cb)cb.onclick=()=>{S.claimed=true;$("#squad").style.display="block";$("#waMsg").value=defaultMsg();renderSelected();
+    cb.textContent="📍 "+room+" selected for your group"};
+  const wa=$("#waMsg");
+  if(wa){
+    $("#waShare").onclick=()=>window.open("https://wa.me/?text="+encodeURIComponent($("#waMsg").value),"_blank");
+    $("#waCopy").onclick=async()=>{try{await navigator.clipboard.writeText($("#waMsg").value);$("#waNote").textContent="Message copied."}catch(e){$("#waMsg").select();$("#waNote").textContent="Press Ctrl/Cmd+C to copy."}};
+    $("#waReset").onclick=()=>{$("#waMsg").value=defaultMsg();$("#waNote").textContent="Message reset."};
+  }
+  tickCountdowns();
+}
+function defaultMsg(){const r=statusOf(S.selected);
+  return `📍 Heading to ${S.selected} on the ${floorName(r.floor).toLowerCase()}. It's free until ${fmt12(r.freeUntil)}. Come fast! 🚀`}
+function renderSelected(){
+  if(!S.selected){return}
+  const r=statusOf(S.selected);
+  $("#selWrap").innerHTML=`<h3>📍 ${S.selected} ${badge(r.state)}</h3>
+    <p class="muted">${floorName(r.floor)} · ${buildingOf(S.selected)} · ${S.lastResult?S.lastResult.day:""}</p>
+    <div class="kv"><span>Status</span><b>${r.state==="busy"?"Occupied by "+r.busyWith.subject:"Free until "+fmt12(r.freeUntil)}</b>
+      <span>Countdown</span><b class="count" data-until="${r.state==="busy"?r.busyWith.endMin:r.freeUntil}">—</b>
+      <span>Next class</span><b>${r.next?r.next.subject+" · "+r.next.sectionName+" · "+fmt12(r.next.startMin):"No further class today"}</b>
+      <span>AC</span><b>Not specified</b><span>Capacity</span><b>Not specified</b>
+      <span>Group selection</span><b>${S.claimed?"Room selected for your group":"Not claimed yet"}</b></div>
+    <div class="row"><button id="openAgain">Open room details</button>
+      <button class="primary" id="shareAgain">📲 Call the squad</button></div>`;
+  $("#openAgain").onclick=()=>openRoom(S.selected);
+  $("#shareAgain").onclick=()=>window.open("https://wa.me/?text="+encodeURIComponent(defaultMsg()),"_blank");
+}
+/* ---------- countdowns: recompute every second ---------- */
+let lastState="";
+function tickCountdowns(){
+  const n=nowMin()*60+new Date().getSeconds(), live=isToday();
+  $$(".count[data-until]").forEach(el=>{
+    const until=+el.dataset.until;
+    if(!live){el.textContent=fmt12(until)+" (planned)";return}
+    let s=until*60-n;
+    if(s<=0){el.textContent="00:00:00";return}
+    el.textContent=[Math.floor(s/3600),Math.floor(s%3600/60),s%60].map(v=>String(v).padStart(2,"0")).join(":");
+  });
+}
+setInterval(()=>{
+  tickClock(); tickCountdowns();
+  if(isToday()&&(S.start==null)){
+    const key=ROOMS.map(r=>statusOf(r).state).join("");   // re-render only when a status flips
+    if(key!==lastState){lastState=key;render()}
+  }
+},1000);
+
+/* ---------- boot ---------- */
+$("#fDate").value=new Date().toISOString().slice(0,10);
+tickClock(); render();
+</script>
+</body>
+</html>

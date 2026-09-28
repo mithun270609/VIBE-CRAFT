@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AttendX — Attendance Intelligence</title>
+<meta name="description" content="AttendX: track attendance, simulate OD & medical leave, plan future leaves and ask the Attendance Advisor." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#f6f7f4; --surface:#ffffff; --surface-2:#eff1ec; --text:#14201c; --muted:#5d6b64;
+  --border:#dde1d9; --brand:#0f7b62; --brand-soft:#d6efe6; --accent:#e0722a;
+  --safe:#0f7b62; --warn:#c98a00; --danger:#c0392b; --radius:16px;
+  --shadow:0 10px 30px rgba(20,32,28,.08);
+}
+.dark{
+  --bg:#0d1512; --surface:#131e1a; --surface-2:#1a2723; --text:#eaf2ee; --muted:#9bada5;
+  --border:#26332e; --brand:#3ecfa5; --brand-soft:#173a30; --accent:#f0954f;
+  --safe:#3ecfa5; --warn:#e8b23c; --danger:#ef6b5c;
+  --shadow:0 10px 30px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"DM Sans",system-ui,sans-serif;line-height:1.5}
+h1,h2,h3,.brand{font-family:"Space Grotesk",system-ui,sans-serif;letter-spacing:-.02em}
+.wrap{max-width:1180px;margin:0 auto;padding:22px 18px 120px}
+header.top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:22px}
+.brand{font-size:26px;font-weight:700}
+.brand span{color:var(--brand)}
+.tag{font-size:12px;color:var(--muted)}
+.spacer{flex:1}
+button{font:inherit;cursor:pointer;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:9px 14px;transition:.18s}
+button:hover{transform:translateY(-1px)}
+button.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+button.ghost{background:transparent}
+button.mini{padding:5px 9px;font-size:13px;border-radius:9px}
+input,select{font:inherit;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:8px 10px;width:100%}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
+.grid{display:grid;gap:16px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+@media(max-width:900px){.g4,.g3,.g2{grid-template-columns:1fr}}
+.kpi .v{font-size:32px;font-weight:700;font-family:"Space Grotesk",sans-serif}
+.kpi .l{font-size:13px;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px}
+.p-safe{background:var(--brand-soft);color:var(--safe)}
+.p-warn{background:rgba(201,138,0,.14);color:var(--warn)}
+.p-danger{background:rgba(192,57,43,.14);color:var(--danger)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--border);vertical-align:middle}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+td input{max-width:92px}
+td input.name{max-width:160px}
+.bar{height:7px;border-radius:999px;background:var(--surface-2);overflow:hidden;min-width:70px}
+.bar i{display:block;height:100%;border-radius:999px}
+section{margin-top:22px}
+h2{font-size:19px;margin:0 0 4px}
+.sub{color:var(--muted);font-size:13.5px;margin:0 0 14px}
+.result{background:var(--surface-2);border-radius:12px;padding:14px;font-size:14px}
+.result .row{display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px dashed var(--border)}
+.result .row:last-child{border:0}
+.note{font-size:12px;color:var(--muted);margin-top:8px}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+label.check{display:flex;gap:8px;align-items:center;font-size:14px}
+label.check input{width:auto}
+.chart-box{position:relative;height:280px}
+/* chat */
+#fab{position:fixed;right:20px;bottom:20px;z-index:50;border-radius:999px;padding:14px 18px;background:var(--brand);color:#fff;border:0;box-shadow:var(--shadow);font-weight:700}
+#chat{position:fixed;right:20px;bottom:88px;width:380px;max-height:70vh;z-index:51;display:none;flex-direction:column;background:var(--surface);border:1px solid var(--border);border-radius:18px;overflow:hidden;box-shadow:var(--shadow);animation:pop .22s ease}
+#chat.open{display:flex}
+@keyframes pop{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+.chat-head{padding:14px 16px;background:var(--brand);color:#fff}
+.chat-head h3{margin:0;font-size:16px}
+.chat-head p{margin:2px 0 0;font-size:12px;opacity:.85}
+.chat-head .x{position:absolute;right:12px;top:12px;background:rgba(255,255,255,.18);border:0;color:#fff}
+#msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--bg)}
+.msg{max-width:88%;padding:10px 12px;border-radius:14px;font-size:14px;white-space:pre-wrap;animation:pop .18s ease}
+.msg.bot{background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:4px}
+.msg.me{background:var(--brand);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.time{font-size:10px;opacity:.6;display:block;margin-top:4px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px;background:var(--surface)}
+.chips button{font-size:12px;padding:5px 9px;border-radius:999px;background:var(--surface-2)}
+.chat-in{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border);background:var(--surface)}
+.dots span{display:inline-block;width:6px;height:6px;margin-right:3px;border-radius:50%;background:var(--muted);animation:b 1s infinite}
+.dots span:nth-child(2){animation-delay:.15s}.dots span:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+@media(max-width:520px){#chat{right:10px;left:10px;width:auto;bottom:80px}}
+@media print{#fab,#chat,button,.no-print{display:none!important}body{background:#fff}.card{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="brand">Attend<span>X</span></div>
+      <div class="tag">Attendance intelligence · 75% rule · 90% target · leave planning</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="ghost" id="themeBtn">🌙 Dark</button>
+    <button class="ghost" onclick="window.print()">🖨 Print report</button>
+    <button class="ghost" id="resetAll">↺ Reset data</button>
+  </header>
+
+  <!-- SETTINGS -->
+  <div class="card grid g4" style="align-items:end">
+    <div class="field"><label>Required minimum (%)</label><input type="number" id="setReq" min="1" max="100" step="0.5"></div>
+    <div class="field"><label>Target (%)</label><input type="number" id="setTarget" min="1" max="100" step="0.5"></div>
+    <div class="field"><label>Weeks left in semester</label><input type="number" id="setWeeks" min="0" max="40"></div>
+    <div class="field"><label>Student name</label><input id="setName" placeholder="Your name"></div>
+  </div>
+
+  <!-- KPIs -->
+  <section class="grid g4">
+    <div class="card kpi"><div class="l">Overall attendance</div><div class="v" id="kOverall">—</div><div id="kStatus"></div></div>
+    <div class="card kpi"><div class="l">Attended / Conducted</div><div class="v" id="kCounts">—</div><div class="l" id="kShort"></div></div>
+    <div class="card kpi"><div class="l">Classes you can still skip</div><div class="v" id="kSkip">—</div><div class="l">while staying at required %</div></div>
+    <div class="card kpi"><div class="l">Needed for target</div><div class="v" id="kNeed">—</div><div class="l" id="kNeedNote"></div></div>
+  </section>
+
+  <!-- SUBJECTS -->
+  <section class="card">
+    <h2>Subjects</h2>
+    <p class="sub">Percentages are always computed from real class counts — never from rounded values.</p>
+    <div style="overflow-x:auto">
+      <table id="tbl">
+        <thead><tr>
+          <th>Subject</th><th>Attended</th><th>Conducted</th><th>Classes / week</th><th>Remaining</th>
+          <th>Attendance</th><th>Max possible</th><th>Safe skips</th><th>Need for target</th><th>Status</th><th></th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:12px"><button class="primary" id="addSub">+ Add subject</button></div>
+  </section>
+
+  <!-- CHARTS -->
+  <section>
+    <h2>Attendance Analytics</h2>
+    <p class="sub">Charts update automatically whenever your data changes.</p>
+    <div class="grid g2">
+      <div class="card"><div class="chart-box"><canvas id="chartDoughnut"></canvas></div>
+        <div class="note" id="doughnutNote"></div></div>
+      <div class="card"><div class="chart-box"><canvas id="chartBar"></canvas></div>
+        <div class="note">Green = safe · Amber = at risk · Red = critical. Dashed lines mark the required minimum and the target.</div></div>
+    </div>
+    <div class="card grid g2" style="margin-top:16px">
+      <div class="chart-box"><canvas id="chartRisk"></canvas></div>
+      <div>
+        <h3 style="margin-top:0">Risk breakdown</h3>
+        <div class="result" id="riskList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SIMULATOR -->
+  <section class="card">
+    <h2>OD &amp; Medical Leave Simulator</h2>
+    <p class="sub">Preview the exact impact before anything is saved.</p>
+    <div class="grid g4" style="align-items:end">
+      <div class="field"><label>Subject</label><select id="simSubject"></select></div>
+      <div class="field"><label>Leave type</label><select id="simType"><option value="OD">On-Duty (OD)</option><option value="Medical">Medical Leave</option></select></div>
+      <div class="field"><label>Number of classes/days</label><input type="number" id="simCount" min="0" value="3"></div>
+      <div class="field"><label class="check"><input type="checkbox" id="simCounts" checked> Count leave as attended</label></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 14px">
+      <button class="primary" id="simPreview">Preview changes</button>
+      <button id="simApply">Apply changes</button>
+      <button class="ghost" id="simReset">Reset</button>
+    </div>
+    <div class="result" id="simOut">Choose a subject and press <b>Preview changes</b>.</div>
+  </section>
+
+  <!-- PLANNER -->
+  <section class="card">
+    <h2>Future Leave Planner</h2>
+    <p class="sub">Estimates how many classes a date range will cost you.</p>
+    <div class="grid g4" style="align-items:end">
+      <div class="field"><label>Subject</label><select id="plSubject"></select></div>
+      <div class="field"><label>Leave start</label><input type="date" id="plFrom"></div>
+      <div class="field"><label>Leave end</label><input type="date" id="plTo"></div>
+      <div class="field"><label>Leave type</label><select id="plType">
+        <option>Sick Leave</option><option>Medical Leave</option><option>OD</option><option>Personal Leave</option></select></div>
+    </div>
+    <div class="field"><label class="check"><input type="checkbox" id="plExact"> I know the exact number of classes I will miss</label></div>
+    <div class="field" id="plExactWrap" style="display:none;max-width:220px"><label>Exact classes missed</label><input type="number" id="plExactN" min="0" value="2"></div>
+    <div style="display:flex;gap:8px;margin:6px 0 14px"><button class="primary" id="plRun">Calculate impact</button></div>
+    <div class="result" id="plOut">Pick a subject and a date range.</div>
+  </section>
+</div>
+
+<!-- CHATBOT -->
+<button id="fab">🤖 Attendance Advisor</button>
+<div id="chat" role="dialog" aria-label="Attendance Advisor">
+  <div class="chat-head" style="position:relative">
+    <h3>Attendance Advisor</h3>
+    <p>Your personal attendance planning assistant</p>
+    <button class="x mini" id="chatClose">✕</button>
+  </div>
+  <div id="msgs"></div>
+  <div class="chips">
+    <button data-q="Show my attendance summary">Show my attendance summary</button>
+    <button data-q="Which subject is at risk?">Which subject is at risk?</button>
+    <button data-q="Can I miss a class?">Can I miss a class?</button>
+    <button data-q="How do I reach 90%?">How do I reach 90%?</button>
+    <button data-q="Plan a 3-day leave">Plan a 3-day leave</button>
+    <button data-q="__clear" id="clearChat">🧹 Clear chat</button>
+  </div>
+  <div class="chat-in">
+    <input id="chatInput" placeholder="Ask e.g. Can I miss 2 Maths classes?" />
+    <button class="primary" id="chatSend">Send</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   SINGLE SHARED CALCULATION ENGINE
+   ============================================================ */
+const KEY='attendx.v2';
+const DEFAULT={
+  student:'', required:75, target:90, weeks:8,
+  subjects:[
+    {id:1,name:'Mathematics',attended:32,conducted:40,perWeek:4,remaining:32},
+    {id:2,name:'Chemistry',attended:29,conducted:37,perWeek:3,remaining:24},
+    {id:3,name:'Physics',attended:26,conducted:38,perWeek:3,remaining:24},
+    {id:4,name:'English',attended:18,conducted:20,perWeek:2,remaining:16}
+  ],
+  theme:'light', chat:[]
+};
+let S = load();
+function load(){ try{ const r=JSON.parse(localStorage.getItem(KEY)); if(r&&r.subjects) return Object.assign({},DEFAULT,r);}catch(e){} return JSON.parse(JSON.stringify(DEFAULT)); }
+function save(){ localStorage.setItem(KEY,JSON.stringify(S)); }
+
+const E = {
+  pct:(a,c)=> c>0 ? (a/c)*100 : 0,
+  round:(n,d=1)=> Math.round(n*10**d)/10**d,
+  maxPossible:(a,c,r)=> (c+r)>0 ? ((a+r)/(c+r))*100 : 0,
+  // smallest integer x so that (a+x)/(c+r) >= t/100 , x <= r
+  needed:(a,c,r,t)=>{
+    for(let x=0;x<=r;x++){ if(((a+x)/(c+r))*100 >= t-1e-9) return x; }
+    return null; // impossible within remaining classes
+  },
+  // largest m so that a/(c+m) >= t/100
+  safeSkips:(a,c,t)=> Math.max(0, Math.floor(a/(t/100) - c + 1e-9)),
+  status(a,c,r,req,target){
+    const p=this.pct(a,c), mp=this.maxPossible(a,c,r);
+    if(c===0) return {key:'none',label:'NO DATA',cls:'p-warn',icon:'⚪',color:'#999'};
+    if(mp < req-1e-9) return {key:'detention',label:'IRREVERSIBLE DETENTION',cls:'p-danger',icon:'🔴',color:getVar('--danger')};
+    if(p < req) return {key:'below',label:'BELOW REQUIREMENT',cls:'p-danger',icon:'🔴',color:getVar('--danger')};
+    if(p < target) return {key:'risk',label:'AT RISK',cls:'p-warn',icon:'🟡',color:getVar('--warn')};
+    return {key:'safe',label:'SAFE',cls:'p-safe',icon:'🟢',color:getVar('--safe')};
+  },
+  classesInRange(perWeek,from,to){
+    const d=Math.floor((to-from)/86400000)+1;
+    if(d<=0) return 0;
+    return Math.max(0, Math.round(perWeek*(d/7)));
+  },
+  totals(){
+    const a=S.subjects.reduce((s,x)=>s+num(x.attended),0);
+    const c=S.subjects.reduce((s,x)=>s+num(x.conducted),0);
+    const r=S.subjects.reduce((s,x)=>s+num(x.remaining),0);
+    return {a,c,r,pct:this.pct(a,c),max:this.maxPossible(a,c,r)};
+  }
+};
+function num(v){ const n=Number(v); return isFinite(n)&&n>0?Math.floor(n):0; }
+function getVar(n){ return getComputedStyle(document.body).getPropertyValue(n).trim()||'#888'; }
+const f1=n=>E.round(n,1).toFixed(1);
+
+/* ============================================================ RENDER */
+function renderSettings(){
+  setNode('setReq',S.required); setNode('setTarget',S.target); setNode('setWeeks',S.weeks); setNode('setName',S.student);
+}
+function setNode(id,v){ const el=document.getElementById(id); if(el) el.value=v; }
+
+function renderKPIs(){
+  const t=E.totals();
+  document.getElementById('kOverall').textContent = t.c? f1(t.pct)+'%' : '—';
+  const st=E.status(t.a,t.c,t.r,S.required,S.target);
+  document.getElementById('kStatus').innerHTML = `<span class="pill ${st.cls}">${st.icon} ${st.label}</span>`;
+  document.getElementById('kCounts').textContent = t.a+' / '+t.c;
+  const shortfall = Math.max(0, Math.ceil(S.required/100*t.c - t.a));
+  document.getElementById('kShort').textContent = t.pct>=S.required
+    ? 'Above the '+S.required+'% requirement' : 'Short by ~'+shortfall+' classes right now';
+  document.getElementById('kSkip').textContent = E.safeSkips(t.a,t.c,S.required);
+  const need=E.needed(t.a,t.c,t.r,S.target);
+  document.getElementById('kNeed').textContent = need===null? 'Not possible' : need+' of '+t.r;
+  document.getElementById('kNeedNote').textContent = need===null
+    ? S.target+'% is out of reach with '+t.r+' classes left'
+    : 'classes to reach '+S.target+'%';
+}
+
+function renderTable(){
+  const tb=document.getElementById('tbody'); tb.innerHTML='';
+  S.subjects.forEach((s,i)=>{
+    const a=num(s.attended),c=num(s.conducted),r=num(s.remaining);
+    const p=E.pct(a,c), mp=E.maxPossible(a,c,r), st=E.status(a,c,r,S.required,S.target);
+    const need=E.needed(a,c,r,S.target);
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><input class="name" data-i="${i}" data-k="name" value="${escapeHtml(s.name)}"></td>
+      <td><input type="number" min="0" data-i="${i}" data-k="attended" value="${a}"></td>
+      <td><input type="number" min="0" data-i="${i}" data-k="conducted" value="${c}"></td>
+      <td><input type="number" min="0" data-i="${i}" data-k="perWeek" value="${num(s.perWeek)}"></td>
+      <td><input type="number" min="0" data-i="${i}" data-k="remaining" value="${r}"></td>
+      <td><b>${f1(p)}%</b><div class="bar"><i style="width:${Math.min(100,p)}%;background:${st.color}"></i></div></td>
+      <td>${f1(mp)}%</td>
+      <td>${E.safeSkips(a,c,S.required)}</td>
+      <td>${need===null?'<span style="color:var(--danger)">impossible</span>':need+' / '+r}</td>
+      <td><span class="pill ${st.cls}">${st.icon} ${st.label}</span></td>
+      <td class="no-print"><button class="mini ghost" data-del="${i}">✕</button></td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('input',()=>{
+      const i=+inp.dataset.i,k=inp.dataset.k;
+      S.subjects[i][k] = k==='name'? inp.value : (inp.value===''?0:Math.max(0,Math.floor(+inp.value||0)));
+      save(); refresh(k!=='name');
+    });
+  });
+  tb.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{
+    S.subjects.splice(+b.dataset.del,1); save(); refresh(true);
+  }));
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function renderSelects(){
+  ['simSubject','plSubject'].forEach(id=>{
+    const el=document.getElementById(id), cur=el.value;
+    el.innerHTML=S.subjects.map((s,i)=>`<option value="${i}">${escapeHtml(s.name)}</option>`).join('');
+    if(cur && S.subjects[cur]) el.value=cur;
+  });
+}
+
+/* ============================================================ CHARTS */
+let cD,cB,cR;
+function renderCharts(){
+  const t=E.totals(), text=getVar('--text'), grid=getVar('--border');
+  Chart.defaults.color=text; Chart.defaults.font.family='DM Sans, sans-serif';
+  const dData=[Math.min(t.pct,100),Math.max(0,100-t.pct)];
+  if(cD) cD.destroy();
+  cD=new Chart(document.getElementById('chartDoughnut'),{
+    type:'doughnut',
+    data:{labels:['Attended','Missed'],datasets:[{data:dData,backgroundColor:[E.status(t.a,t.c,t.r,S.required,S.target).color,getVar('--surface-2')],borderWidth:0,cutout:'72%'}]},
+    options:{plugins:{legend:{position:'bottom'},title:{display:true,text:'Overall attendance '+f1(t.pct)+'%',font:{size:16}},
+      tooltip:{callbacks:{label:c=>c.label+': '+f1(c.raw)+'%'}}},maintainAspectRatio:false}
+  });
+  document.getElementById('doughnutNote').innerHTML =
+    `Required minimum <b>${S.required}%</b> · Target <b>${S.target}%</b> · Max still possible <b>${f1(t.max)}%</b>`;
+
+  const labels=S.subjects.map(s=>s.name);
+  const vals=S.subjects.map(s=>E.round(E.pct(num(s.attended),num(s.conducted)),1));
+  const cols=S.subjects.map(s=>E.status(num(s.attended),num(s.conducted),num(s.remaining),S.required,S.target).color);
+  if(cB) cB.destroy();
+  cB=new Chart(document.getElementById('chartBar'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Attendance %',data:vals,backgroundColor:cols,borderRadius:8},
+      {label:'Required '+S.required+'%',type:'line',data:labels.map(()=>S.required),borderColor:getVar('--danger'),borderDash:[6,5],pointRadius:0,borderWidth:2},
+      {label:'Target '+S.target+'%',type:'line',data:labels.map(()=>S.target),borderColor:getVar('--brand'),borderDash:[3,4],pointRadius:0,borderWidth:2}
+    ]},
+    options:{maintainAspectRatio:false,scales:{y:{min:0,max:100,grid:{color:grid},ticks:{callback:v=>v+'%'}},x:{grid:{display:false}}},
+      plugins:{legend:{position:'bottom'},title:{display:true,text:'Subject-wise attendance',font:{size:16}},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+f1(c.raw)+'%'}}}}
+  });
+
+  const buckets={safe:0,risk:0,crit:0};
+  S.subjects.forEach(s=>{const st=E.status(num(s.attended),num(s.conducted),num(s.remaining),S.required,S.target);
+    if(st.key==='safe')buckets.safe++; else if(st.key==='risk')buckets.risk++; else buckets.crit++;});
+  if(cR) cR.destroy();
+  cR=new Chart(document.getElementById('chartRisk'),{
+    type:'doughnut',
+    data:{labels:['Safe','At risk','Critical'],datasets:[{data:[buckets.safe,buckets.risk,buckets.crit],
+      backgroundColor:[getVar('--safe'),getVar('--warn'),getVar('--danger')],borderWidth:0}]},
+    options:{maintainAspectRatio:false,plugins:{legend:{position:'bottom'},title:{display:true,text:'Subjects by risk level',font:{size:15}}}}
+  });
+  document.getElementById('riskList').innerHTML = S.subjects.map(s=>{
+    const a=num(s.attended),c=num(s.conducted),r=num(s.remaining),st=E.status(a,c,r,S.required,S.target);
+    return `<div class="row"><span>${st.icon} ${escapeHtml(s.name)}</span><span><b>${f1(E.pct(a,c))}%</b> · max ${f1(E.maxPossible(a,c,r))}%</span></div>`;
+  }).join('') || 'Add a subject to see the breakdown.';
+}
+
+/* ============================================================ SIMULATOR */
+function simulate(i,count,countsAsAttended){
+  const s=S.subjects[i]; const a=num(s.attended),c=num(s.conducted),r=num(s.remaining);
+  const n=Math.max(0,Math.floor(count||0));
+  const na = a + (countsAsAttended? n:0);
+  const nc = c + n;
+  const nr = Math.max(0, r - n);
+  return {s,a,c,r,n,na,nc,nr,
+    before:E.pct(a,c), after:E.pct(na,nc),
+    stBefore:E.status(a,c,r,S.required,S.target), stAfter:E.status(na,nc,nr,S.required,S.target),
+    need:E.needed(na,nc,nr,S.target), maxAfter:E.maxPossible(na,nc,nr)};
+}
+function simOutput(r,type){
+  const diff=r.after-r.before;
+  return `<div class="row"><span>Subject / leave</span><span><b>${escapeHtml(r.s.name)}</b> · ${type} · ${r.n} class(es)</span></div>
+  <div class="row"><span>Current attendance</span><span>${r.a} / ${r.c} = <b>${f1(r.before)}%</b></span></div>
+  <div class="row"><span>Adjusted attended</span><span><b>${r.na}</b></span></div>
+  <div class="row"><span>Adjusted conducted</span><span><b>${r.nc}</b></span></div>
+  <div class="row"><span>New attendance</span><span>${r.na} / ${r.nc} × 100 = <b>${f1(r.after)}%</b></span></div>
+  <div class="row"><span>Difference</span><span style="color:${diff<0?'var(--danger)':'var(--safe)'}"><b>${diff>=0?'+':''}${f1(diff)}%</b></span></div>
+  <div class="row"><span>Stays above ${S.required}%?</span><span>${r.after>=S.required?'✅ Yes':'❌ No'}</span></div>
+  <div class="row"><span>${S.target}% still achievable?</span><span>${r.need===null?'❌ No (max '+f1(r.maxAfter)+'%)':'✅ Yes — attend '+r.need+' of the next '+r.nr}</span></div>
+  <div class="row"><span>Status after leave</span><span class="pill ${r.stAfter.cls}">${r.stAfter.icon} ${r.stAfter.label}</span></div>`;
+}
+function runPreview(){
+  if(!S.subjects.length) return;
+  const i=+document.getElementById('simSubject').value||0;
+  const n=+document.getElementById('simCount').value||0;
+  const counts=document.getElementById('simCounts').checked;
+  const type=document.getElementById('simType').value==='OD'?'On-Duty (OD)':'Medical Leave';
+  const r=simulate(i,n,counts);
+  document.getElementById('simOut').innerHTML = simOutput(r,type)+
+    `<div class="note">Preview only — nothing is saved until you press <b>Apply changes</b>.</div>`;
+  return r;
+}
+
+/* ============================================================ PLANNER */
+function runPlanner(){
+  if(!S.subjects.length) return;
+  const i=+document.getElementById('plSubject').value||0, s=S.subjects[i];
+  const from=document.getElementById('plFrom').value, to=document.getElementById('plTo').value;
+  const exact=document.getElementById('plExact').checked;
+  const type=document.getElementById('plType').value;
+  const out=document.getElementById('plOut');
+  let missed, basis;
+  if(exact){ missed=Math.max(0,+document.getElementById('plExactN').value||0); basis='Exact class count you entered.'; }
+  else{
+    if(!from||!to){ out.textContent='Please choose both a start and an end date.'; return; }
+    const d1=new Date(from),d2=new Date(to);
+    if(d2<d1){ out.textContent='The end date is before the start date.'; return; }
+    missed=E.classesInRange(num(s.perWeek),d1,d2);
+    basis='<b>Estimated</b> from your configured weekly class frequency ('+num(s.perWeek)+' classes/week) — not an exact timetable.';
+  }
+  const a=num(s.attended),c=num(s.conducted),r=num(s.remaining);
+  const nc=c+missed, nr=Math.max(0,r-missed), proj=E.pct(a,nc);
+  const need=E.needed(a,nc,nr,S.required), needT=E.needed(a,nc,nr,S.target);
+  out.innerHTML=`<div class="row"><span>Subject / leave type</span><span><b>${escapeHtml(s.name)}</b> · ${type}</span></div>
+  <div class="row"><span>Current attendance</span><span>${a} / ${c} = <b>${f1(E.pct(a,c))}%</b></span></div>
+  <div class="row"><span>${exact?'Classes missed':'Estimated classes missed'}</span><span><b>${missed}</b></span></div>
+  <div class="row"><span>Projected attendance</span><span>${a} / ${nc} = <b>${f1(proj)}%</b></span></div>
+  <div class="row"><span>Falls below ${S.required}%?</span><span>${proj<S.required?'⚠️ Yes':'✅ No'}</span></div>
+  <div class="row"><span>${S.target}% still achievable?</span><span>${needT===null?'❌ No':'✅ Yes — attend '+needT+' of next '+nr}</span></div>
+  <div class="row"><span>Classes needed to recover to ${S.required}%</span><span>${need===null?'❌ Not possible (max '+f1(E.maxPossible(a,nc,nr))+'%)':need+' of the next '+nr}</span></div>
+  <div class="note">${basis}</div>`;
+}
+
+/* ============================================================ CHATBOT */
+const msgs=document.getElementById('msgs');
+function stamp(){ return new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
+function addMsg(who,text,store=true){
+  const d=document.createElement('div'); d.className='msg '+(who==='me'?'me':'bot');
+  d.innerHTML=escapeHtml(text).replace(/\n/g,'<br>')+`<span class="time">${stamp()}</span>`;
+  msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight;
+  if(store){ S.chat.push({who,text}); if(S.chat.length>60)S.chat.shift(); save(); }
+}
+function restoreChat(){
+  msgs.innerHTML='';
+  if(!S.chat.length){ addMsg('bot',"Hi! I'm your Attendance Advisor. I read your live dashboard data.\nTry: \"Can I miss 2 Chemistry classes?\" or \"Which subject is in the most danger?\"",false); }
+  else S.chat.forEach(m=>addMsg(m.who,m.text,false));
+}
+function typing(on){
+  let t=document.getElementById('typing');
+  if(on&&!t){ t=document.createElement('div'); t.id='typing'; t.className='msg bot';
+    t.innerHTML='<span class="dots"><span></span><span></span><span></span></span>'; msgs.appendChild(t); msgs.scrollTop=msgs.scrollHeight; }
+  if(!on&&t) t.remove();
+}
+function findSubject(q){
+  const low=q.toLowerCase();
+  let best=null;
+  S.subjects.forEach((s,i)=>{
+    const n=s.name.toLowerCase();
+    if(low.includes(n)) best={i,s};
+    else{ const w=n.split(/\s+/)[0]; if(w.length>3 && low.includes(w.slice(0,Math.max(4,w.length-2)))) best=best||{i,s}; }
+  });
+  return best;
+}
+function firstNum(q){ const m=q.match(/\b(\d+(?:\.\d+)?)\b/); return m? +m[1] : null; }
+function targetFrom(q,fallback){ const m=q.match(/(\d{2}(?:\.\d+)?)\s*%/); return m? +m[1] : fallback; }
+function subjLine(s){
+  const a=num(s.attended),c=num(s.conducted),r=num(s.remaining),st=E.status(a,c,r,S.required,S.target);
+  return `${st.icon} ${s.name}: ${f1(E.pct(a,c))}% (${a}/${c}), max possible ${f1(E.maxPossible(a,c,r))}%`;
+}
+function detentionWarning(s){
+  const a=num(s.attended),c=num(s.conducted),r=num(s.remaining);
+  return `⚠️ IRREVERSIBLE DETENTION\nEven if you attend every remaining ${s.name} class, the maximum possible attendance is ${f1(E.maxPossible(a,c,r))}%, which is below the required ${S.required}%.`;
+}
+function advise(q){
+  const low=q.toLowerCase().trim();
+  if(!S.subjects.length) return "You haven't added any subjects yet, so I have no data to calculate with.";
+  const t=E.totals();
+  const sub=findSubject(low);
+  const n=firstNum(low);
+  const days=/(day|days)/.test(low);
+  const leaveWords=/(leave|sick|medical|\bod\b|on[- ]duty|miss|skip|absent|holiday|trip)/.test(low);
+  const dateAsk=/\b(on|by)\b.*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{1,2}\/\d{1,2})/.test(low)||/tomorrow|today|next week/.test(low);
+
+  /* summary */
+  if(/summary|overview|overall|how am i|my attendance\b(?!.*(drop|miss))/.test(low) && !leaveWords){
+    const st=E.status(t.a,t.c,t.r,S.required,S.target);
+    return `${st.icon} Overall: ${f1(t.pct)}% (${t.a}/${t.c}), required ${S.required}%, target ${S.target}%.\n\n`+
+      S.subjects.map(subjLine).join('\n')+
+      `\n\nYou can still skip about ${E.safeSkips(t.a,t.c,S.required)} more classes overall and stay at ${S.required}%.`;
+  }
+  /* danger */
+  if(/(danger|risk|worst|focus|priority|worried|which subject)/.test(low)){
+    const ranked=[...S.subjects].sort((x,y)=>E.pct(num(x.attended),num(x.conducted))-E.pct(num(y.attended),num(y.conducted)));
+    const w=ranked[0];
+    const det=S.subjects.filter(s=>E.status(num(s.attended),num(s.conducted),num(s.remaining),S.required,S.target).key==='detention');
+    return `Most at risk: ${w.name} at ${f1(E.pct(num(w.attended),num(w.conducted)))}%.\n\n`+
+      ranked.map(subjLine).join('\n')+
+      (det.length? `\n\n`+det.map(detentionWarning).join('\n\n') : `\n\nFocus on ${w.name} first — attending its next classes moves your overall number the most.`);
+  }
+  /* recovery / reach target */
+  if(/(reach|recover|get to|climb|achieve|how many)/.test(low) && !leaveWords){
+    const tg=targetFrom(low, /90/.test(low)?90:S.target);
+    if(sub){
+      const s=sub.s,a=num(s.attended),c=num(s.conducted),r=num(s.remaining);
+      const need=E.needed(a,c,r,tg);
+      if(need===null) return `${s.name} is at ${f1(E.pct(a,c))}%.\nWith ${r} classes left, the maximum you can reach is ${f1(E.maxPossible(a,c,r))}% — so ${tg}% is not mathematically achievable.`+
+        (E.maxPossible(a,c,r)<S.required? `\n\n`+detentionWarning(s):'');
+      return `${s.name} is at ${f1(E.pct(a,c))}% (${a}/${c}).\nTo reach ${tg}%, attend ${need} of the next ${r} classes → (${a}+${need})/(${c}+${r}) = ${f1(((a+need)/(c+r))*100)}%.\nThat allows you to miss ${r-need} of them.`;
+      }
+    const need=E.needed(t.a,t.c,t.r,tg);
+    if(need===null) return `Overall you are at ${f1(t.pct)}%. Even attending all ${t.r} remaining classes gets you to ${f1(t.max)}%, so ${tg}% isn't reachable.`;
+    return `Overall you are at ${f1(t.pct)}% (${t.a}/${t.c}).\nAttend ${need} of the next ${t.r} classes to reach ${tg}% → ${f1(((t.a+need)/(t.c+t.r))*100)}%.\nAsk me per subject for a precise plan.`;
+  }
+  /* leave / miss planning */
+  if(leaveWords || dateAsk){
+    if(!sub && S.subjects.length>1 && !/overall|total|any/.test(low))
+      return `I can calculate that, but which subject do you mean? (${S.subjects.map(s=>s.name).join(', ')})`;
+    const s = sub? sub.s : null;
+    if(!s){
+      const miss = n||1;
+      const p=E.pct(t.a,t.c+miss);
+      return `Overall you are at ${f1(t.pct)}%. Missing ${miss} more class(es) → ${t.a}/${t.c+miss} = ${f1(p)}%.\n${p>=S.required?'✅ Still above the '+S.required+'% requirement.':'⚠️ That drops you below '+S.required+'%.'}`;
+    }
+    const a=num(s.attended),c=num(s.conducted),r=num(s.remaining),pw=num(s.perWeek);
+    let miss, est=false;
+    if(days && n){ miss=E.classesInRange(pw,new Date(0),new Date(((n-1)*86400000))); est=true; }
+    else if(n){ miss=Math.floor(n); }
+    else { miss=E.classesInRange(pw,new Date(0),new Date(2*86400000)); est=true; }
+    miss=Math.max(0,miss);
+    const nc=c+miss, nr=Math.max(0,r-miss), proj=E.pct(a,nc);
+    const recover=E.needed(a,nc,nr,S.required), needT=E.needed(a,nc,nr,S.target);
+    let out=`${s.name} is currently at ${f1(E.pct(a,c))}% (${a}/${c}).\n`;
+    out+= est? `Based on your configured class frequency, approximately ${miss} ${s.name} class(es) fall in that period.\nEstimated from your configured weekly class frequency.\n`
+             : `Missing ${miss} ${s.name} class(es).\n`;
+    out+=`\nProjected attendance: ${a}/${nc} = ${f1(proj)}%.\n`;
+    out+= proj<S.required? `⚠️ Yes. This would put ${s.name} below the ${S.required}% requirement.\n` : `✅ ${s.name} stays above the ${S.required}% requirement.\n`;
+    if(recover===null) out+=`\n`+detentionWarning({...s,conducted:nc,remaining:nr});
+    else if(proj<S.required) out+=`\nYou would then need to attend ${recover} of the next ${nr} ${s.name} classes to recover to ${S.required}%.`;
+    out+= needT===null? `\n${S.target}% would no longer be achievable (max ${f1(E.maxPossible(a,nc,nr))}%).`
+                      : `\n${S.target}% would still be achievable — attend ${needT} of the next ${nr}.`;
+    return out;
+  }
+  /* safe skips */
+  if(/(safe|how many can i)/.test(low)){
+    if(sub){ const s=sub.s,a=num(s.attended),c=num(s.conducted);
+      return `${s.name}: ${f1(E.pct(a,c))}% (${a}/${c}). You can miss ${E.safeSkips(a,c,S.required)} more class(es) and still hold ${S.required}%.`; }
+    return `Overall you can miss about ${E.safeSkips(t.a,t.c,S.required)} more class(es) and stay at ${S.required}%.\n`+
+      S.subjects.map(s=>`• ${s.name}: ${E.safeSkips(num(s.attended),num(s.conducted),S.required)} safe skip(s)`).join('\n');
+  }
+  /* single subject asked */
+  if(sub) { const s=sub.s; return subjLine(s)+`\nSafe skips: ${E.safeSkips(num(s.attended),num(s.conducted),S.required)} · Needed for ${S.target}%: ${(E.needed(num(s.attended),num(s.conducted),num(s.remaining),S.target)??'not possible')}`; }
+
+  return "Try asking something like:\n'Can I miss 2 Chemistry classes?'\n'How many Maths classes do I need to reach 90%?'\n'Which subject is in the most danger?'";
+}
+function sendChat(text){
+  const q=(text||'').trim(); if(!q) return;
+  addMsg('me',q);
+  typing(true);
+  setTimeout(()=>{ typing(false); addMsg('bot',advise(q)); }, 420);
+}
+
+/* ============================================================ WIRING */
+function refresh(charts=true){
+  renderKPIs(); renderSelects();
+  if(charts) renderCharts();
+}
+function fullRender(){ renderSettings(); renderTable(); renderKPIs(); renderSelects(); renderCharts(); }
+
+['setReq','setTarget','setWeeks','setName'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',e=>{
+    const v=e.target.value;
+    if(id==='setName') S.student=v;
+    else if(id==='setReq') S.required=Math.min(100,Math.max(1,+v||75));
+    else if(id==='setTarget') S.target=Math.min(100,Math.max(1,+v||90));
+    else S.weeks=Math.max(0,+v||0);
+    save(); renderTable(); refresh(true);
+  });
+});
+document.getElementById('addSub').addEventListener('click',()=>{
+  S.subjects.push({id:Date.now(),name:'New Subject',attended:0,conducted:0,perWeek:3,remaining:3*(S.weeks||8)});
+  save(); fullRender();
+});
+document.getElementById('resetAll').addEventListener('click',()=>{
+  if(!confirm('Reset all attendance data to the sample values?')) return;
+  S=JSON.parse(JSON.stringify(DEFAULT)); save(); fullRender(); restoreChat();
+});
+document.getElementById('themeBtn').addEventListener('click',()=>{
+  S.theme = S.theme==='dark'?'light':'dark'; save(); applyTheme(); renderCharts();
+});
+function applyTheme(){
+  document.body.classList.toggle('dark',S.theme==='dark');
+  document.getElementById('themeBtn').textContent = S.theme==='dark'? '☀️ Light':'🌙 Dark';
+}
+document.getElementById('simPreview').addEventListener('click',runPreview);
+document.getElementById('simApply').addEventListener('click',()=>{
+  const r=runPreview(); if(!r) return;
+  if(!confirm('Apply this leave to your saved attendance for '+r.s.name+'?')) return;
+  r.s.attended=r.na; r.s.conducted=r.nc; r.s.remaining=r.nr; save(); fullRender();
+  document.getElementById('simOut').innerHTML='✅ Applied to <b>'+escapeHtml(r.s.name)+'</b>. Dashboard, charts and advisor now use the updated numbers.';
+});
+document.getElementById('simReset').addEventListener('click',()=>{
+  document.getElementById('simCount').value=0; document.getElementById('simCounts').checked=true;
+  document.getElementById('simOut').textContent='Simulator cleared. Your saved data was not changed.';
+});
+document.getElementById('plExact').addEventListener('change',e=>{
+  document.getElementById('plExactWrap').style.display=e.target.checked?'block':'none';
+});
+document.getElementById('plRun').addEventListener('click',runPlanner);
+document.getElementById('fab').addEventListener('click',()=>document.getElementById('chat').classList.toggle('open'));
+document.getElementById('chatClose').addEventListener('click',()=>document.getElementById('chat').classList.remove('open'));
+document.getElementById('chatSend').addEventListener('click',()=>{ const i=document.getElementById('chatInput'); sendChat(i.value); i.value=''; });
+document.getElementById('chatInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ sendChat(e.target.value); e.target.value=''; }});
+document.querySelectorAll('.chips button').forEach(b=>b.addEventListener('click',()=>{
+  if(b.dataset.q==='__clear'){ S.chat=[]; save(); restoreChat(); return; }
+  sendChat(b.dataset.q);
+}));
+
+(function init(){
+  applyTheme(); fullRender(); restoreChat();
+  const today=new Date(), t2=new Date(Date.now()+2*86400000);
+  document.getElementById('plFrom').value=today.toISOString().slice(0,10);
+  document.getElementById('plTo').value=t2.toISOString().slice(0,10);
+})();
+</script>
+</body>
+</html>
